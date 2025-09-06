@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.microsoft_graph import MicrosoftGraphService
+from app.services.openai_service import OpenAIService
 from app.services.email_processor import EmailProcessor
 from app.models.user import User
 from app.models.email import Email
 from app.models.email_account import EmailAccount
 from app.utils.helpers import extract_email_preview, get_priority_from_urgency
 from app import db
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ def sync_emails():
         data = request.get_json() or {}
         top = min(data.get('count', 50), 200)  # Max 200 emails per sync
         folder = data.get('folder', 'inbox')
+        classify_immediately = data.get('classify', True)  # Auto-classify by default
         
         service = MicrosoftGraphService()
         
@@ -63,6 +65,8 @@ def sync_emails():
         
         synced_count = 0
         skipped_count = 0
+        classified_count = 0
+        new_emails = []
         
         for email_data in emails_data['value']:
             # Check if email already exists
@@ -74,6 +78,12 @@ def sync_emails():
                 skipped_count += 1
                 continue
             
+            # Extract email preview
+            body_preview = extract_email_preview(
+                email_data.get('body', {}).get('content', ''),
+                max_length=500
+            )
+            
             # Create new email record
             email = Email(
                 user_id=user_id,
@@ -84,34 +94,88 @@ def sync_emails():
                 sender_name=email_data.get('from', {}).get('emailAddress', {}).get('name', ''),
                 recipient_email=email_account.email_address,
                 body_content=email_data.get('body', {}).get('content', ''),
-                body_preview=extract_email_preview(
-                    email_data.get('body', {}).get('content', ''),
-                    max_length=500
-                ),
+                body_preview=body_preview,
                 received_at=datetime.fromisoformat(
                     email_data['receivedDateTime'].replace('Z', '+00:00')
                 ),
                 is_read=email_data.get('isRead', False),
                 has_attachments=email_data.get('hasAttachments', False),
                 importance=email_data.get('importance', 'normal'),
-                urgency_category='medium',  # Default, will be classified by AI
+                urgency_category='medium',  # Default, will be updated by AI
                 priority_level=3,
                 confidence_score=0.0,
                 processing_status='pending'
             )
             
             db.session.add(email)
+            db.session.flush()  # Get email ID
+            
+            new_emails.append({
+                'email_id': str(email.id),
+                'subject': email.subject,
+                'sender_name': email.sender_name,
+                'sender_email': email.sender_email,
+                'body_preview': body_preview,
+                'received_at': email.received_at.isoformat()
+            })
+            
             synced_count += 1
         
+        # Commit emails first
         db.session.commit()
         
-        return jsonify({
+        # Classify emails with OpenAI if requested and we have new emails
+        classification_results = {}
+        if classify_immediately and new_emails:
+            try:
+                openai_service = OpenAIService()
+                logger.info(f"Starting AI classification of {len(new_emails)} new emails")
+                
+                # Classify in batches
+                classifications = openai_service.classify_batch(new_emails, batch_size=3)
+                
+                # Update emails with classification results
+                for i, email_data in enumerate(new_emails):
+                    if i < len(classifications):
+                        classification = classifications[i]
+                        
+                        # Find and update the email
+                        email = Email.query.get(email_data['email_id'])
+                        if email:
+                            email.urgency_category = classification.get('urgency_category', 'medium')
+                            email.priority_level = get_priority_from_urgency(email.urgency_category)
+                            email.confidence_score = classification.get('confidence_score', 0.0)
+                            email.ai_classification_reason = classification.get('reasoning', '')
+                            email.processing_status = 'classified'
+                            classified_count += 1
+                
+                # Commit classification updates
+                db.session.commit()
+                
+                # Generate classification stats
+                classification_results = openai_service.get_classification_stats(classifications)
+                
+                logger.info(f"Successfully classified {classified_count} emails")
+                
+            except Exception as e:
+                logger.error(f"Error during email classification: {str(e)}")
+                # Continue without classification - emails are still synced
+        
+        response_data = {
             'success': True,
             'message': f'Successfully synced {synced_count} new emails',
             'synced': synced_count,
             'skipped': skipped_count,
-            'total_fetched': len(emails_data['value'])
-        })
+            'total_fetched': len(emails_data['value']),
+            'classified': classified_count,
+            'classification_enabled': classify_immediately
+        }
+        
+        # Add classification stats if available
+        if classification_results:
+            response_data['classification_stats'] = classification_results
+        
+        return jsonify(response_data)
     
     except Exception as e:
         logger.error(f"Error syncing emails: {str(e)}")
@@ -637,4 +701,256 @@ def search_emails():
         return jsonify({
             'success': False,
             'error': 'Email search failed'
+        }), 500
+
+@emails_bp.route('/classify', methods=['POST'])
+@jwt_required()
+def classify_emails():
+    """Classify specific emails or all pending emails using OpenAI."""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        
+        # Get email IDs to classify (or classify all pending if none specified)
+        email_ids = data.get('email_ids', [])
+        classify_all_pending = data.get('classify_all_pending', False)
+        force_reclassify = data.get('force_reclassify', False)
+        
+        if not email_ids and not classify_all_pending:
+            return jsonify({
+                'success': False,
+                'error': 'Must specify email_ids or set classify_all_pending=true'
+            }), 400
+        
+        # Build query for emails to classify
+        query = Email.query.filter_by(user_id=user_id)
+        
+        if email_ids:
+            query = query.filter(Email.id.in_(email_ids))
+        elif classify_all_pending:
+            if force_reclassify:
+                # Classify all emails
+                query = query
+            else:
+                # Only classify pending emails
+                query = query.filter(Email.processing_status == 'pending')
+        
+        emails = query.all()
+        
+        if not emails:
+            return jsonify({
+                'success': True,
+                'message': 'No emails found to classify',
+                'classified': 0
+            })
+        
+        # Prepare email data for OpenAI
+        emails_data = []
+        for email in emails:
+            emails_data.append({
+                'email_id': str(email.id),
+                'subject': email.subject,
+                'sender_name': email.sender_name,
+                'sender_email': email.sender_email,
+                'body_preview': email.body_preview,
+                'received_at': email.received_at.isoformat()
+            })
+        
+        # Classify with OpenAI
+        openai_service = OpenAIService()
+        logger.info(f"Classifying {len(emails)} emails with OpenAI")
+        
+        classifications = openai_service.classify_batch(emails_data, batch_size=5)
+        
+        # Update emails with classification results
+        classified_count = 0
+        for i, email in enumerate(emails):
+            if i < len(classifications):
+                classification = classifications[i]
+                
+                email.urgency_category = classification.get('urgency_category', 'medium')
+                email.priority_level = get_priority_from_urgency(email.urgency_category)
+                email.confidence_score = classification.get('confidence_score', 0.0)
+                email.ai_classification_reason = classification.get('reasoning', '')
+                email.processing_status = 'classified'
+                
+                classified_count += 1
+        
+        db.session.commit()
+        
+        # Generate classification stats
+        classification_stats = openai_service.get_classification_stats(classifications)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully classified {classified_count} emails',
+            'classified': classified_count,
+            'total_processed': len(emails),
+            'classification_stats': classification_stats
+        })
+    
+    except Exception as e:
+        logger.error(f"Error classifying emails: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Email classification failed'
+        }), 500
+
+@emails_bp.route('/<email_id>/classify', methods=['POST'])
+@jwt_required()
+def classify_single_email(email_id):
+    """Classify a single email using OpenAI."""
+    try:
+        user_id = get_jwt_identity()
+        
+        email = Email.query.filter_by(
+            id=email_id,
+            user_id=user_id
+        ).first()
+        
+        if not email:
+            return jsonify({
+                'success': False,
+                'error': 'Email not found'
+            }), 404
+        
+        # Prepare email data
+        email_data = {
+            'subject': email.subject,
+            'sender_name': email.sender_name,
+            'sender_email': email.sender_email,
+            'body_preview': email.body_preview,
+            'received_at': email.received_at.isoformat()
+        }
+        
+        # Classify with OpenAI
+        openai_service = OpenAIService()
+        classification = openai_service.classify_email(email_data)
+        
+        # Update email
+        email.urgency_category = classification.get('urgency_category', 'medium')
+        email.priority_level = get_priority_from_urgency(email.urgency_category)
+        email.confidence_score = classification.get('confidence_score', 0.0)
+        email.ai_classification_reason = classification.get('reasoning', '')
+        email.processing_status = 'classified'
+        
+        db.session.commit()
+        
+        # Get response priority suggestion
+        priority_suggestion = openai_service.suggest_response_priority(classification)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Email classified successfully',
+            'email': {
+                'id': str(email.id),
+                'urgency_category': email.urgency_category,
+                'priority_level': email.priority_level,
+                'confidence_score': email.confidence_score,
+                'reasoning': email.ai_classification_reason
+            },
+            'classification': classification,
+            'priority_suggestion': priority_suggestion
+        })
+    
+    except Exception as e:
+        logger.error(f"Error classifying email {email_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Email classification failed'
+        }), 500
+
+@emails_bp.route('/classification-stats', methods=['GET'])
+@jwt_required()
+def get_classification_stats():
+    """Get overall classification statistics for user's emails."""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Get all classified emails
+        emails = Email.query.filter_by(
+            user_id=user_id,
+            processing_status='classified'
+        ).all()
+        
+        if not emails:
+            return jsonify({
+                'success': True,
+                'message': 'No classified emails found',
+                'stats': {}
+            })
+        
+        # Convert to format for stats calculation
+        classifications = []
+        for email in emails:
+            classifications.append({
+                'urgency_category': email.urgency_category,
+                'confidence_score': email.confidence_score,
+                'sender_type': 'externo',  # Would need to store this in DB
+                'email_type': 'academico',  # Would need to store this in DB
+                'requires_immediate_action': email.urgency_category in ['urgent', 'high']
+            })
+        
+        # Generate stats
+        openai_service = OpenAIService()
+        stats = openai_service.get_classification_stats(classifications)
+        
+        # Add timing stats
+        recent_emails = Email.query.filter_by(
+            user_id=user_id,
+            processing_status='classified'
+        ).filter(Email.created_at >= datetime.now() - timedelta(days=7)).count()
+        
+        stats['recent_classified'] = recent_emails
+        stats['total_emails'] = Email.query.filter_by(user_id=user_id).count()
+        stats['classification_coverage'] = round((len(emails) / stats['total_emails']) * 100, 1) if stats['total_emails'] > 0 else 0
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting classification stats: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get classification statistics'
+        }), 500
+
+@emails_bp.route('/openai-status', methods=['GET'])
+@jwt_required()
+def get_openai_status():
+    """Get OpenAI service status and configuration."""
+    try:
+        openai_service = OpenAIService()
+        status = openai_service.get_status()
+        
+        # Add some usage stats if available
+        user_id = get_jwt_identity()
+        pending_count = Email.query.filter_by(
+            user_id=user_id,
+            processing_status='pending'
+        ).count()
+        
+        classified_count = Email.query.filter_by(
+            user_id=user_id,
+            processing_status='classified'
+        ).count()
+        
+        status['user_stats'] = {
+            'pending_classification': pending_count,
+            'already_classified': classified_count,
+            'total_emails': pending_count + classified_count
+        }
+        
+        return jsonify({
+            'success': True,
+            'openai_status': status
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting OpenAI status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get OpenAI status'
         }), 500

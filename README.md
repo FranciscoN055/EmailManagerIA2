@@ -105,6 +105,34 @@ MICROSOFT_TENANT_ID=common
 MICROSOFT_REDIRECT_URI=http://localhost:5000/auth/microsoft/callback
 ```
 
+### 🤖 **Configuración OpenAI GPT-4**
+
+#### **1. Obtener API Key de OpenAI**
+1. Ve a [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Crea una nueva API key
+3. Copia el valor → `OPENAI_API_KEY`
+
+#### **2. Variables de Entorno OpenAI**
+```env
+OPENAI_API_KEY=sk-proj-abcd1234567890...
+OPENAI_MODEL=gpt-4
+OPENAI_MAX_TOKENS=800
+OPENAI_TEMPERATURE=0.3
+```
+
+#### **3. Características de Clasificación IA**
+- **Contexto académico especializado** para Universidad San Sebastián
+- **Detección automática** de urgencias estudiantiles y administrativas
+- **Fallback inteligente** con reglas cuando OpenAI no disponible
+- **Clasificación en lotes** para procesamiento eficiente
+- **Confidence scoring** para validar precisión de clasificaciones
+
+#### **4. Niveles de Urgencia IA**
+- **Urgente**: Emergencias, crisis estudiantiles, deadlines inmediatos
+- **Alta**: Reuniones hoy, consultas académicas importantes
+- **Media**: Coordinación rutinaria, consultas generales
+- **Baja**: Información general, documentación no urgente
+
 ## 🗄️ Categorías de Urgencia
 
 1. 🔴 **Urgente** (próxima hora) - Rojo
@@ -124,7 +152,7 @@ MICROSOFT_REDIRECT_URI=http://localhost:5000/auth/microsoft/callback
 - [x] **Estructura completa** de archivos y configuraciones
 - [x] **Documentación** comprehensive
 
-### 🆕 **COMPLETADO EN ESTA SESIÓN - Microsoft Graph Integration**
+### 🆕 **COMPLETADO EN SESIÓN 2 - Microsoft Graph Integration**
 - [x] **Microsoft Graph Service completo** con MSAL authentication
 - [x] **OAuth2 Flow implementado** - Login, callback, disconnect
 - [x] **Email Synchronization API** - Sync desde Outlook con pagination
@@ -134,25 +162,36 @@ MICROSOFT_REDIRECT_URI=http://localhost:5000/auth/microsoft/callback
 - [x] **Environment templates** - Setup completo con .env.example
 - [x] **API Testing completo** - Todos los endpoints funcionando
 
+### 🤖 **COMPLETADO EN SESIÓN 3 - OpenAI Classification**
+- [x] **OpenAI GPT-4 Service completo** especializado en contexto académico
+- [x] **Prompts optimizados** para directora ICIF Universidad San Sebastián
+- [x] **Clasificación automática** en sync con batch processing
+- [x] **Sistema de fallback** basado en reglas cuando OpenAI no disponible
+- [x] **Confidence scoring** y estadísticas detalladas de clasificación  
+- [x] **Response priority suggestions** con timeframes académicos
+- [x] **Detección de contexto** (estudiante/profesor/administración)
+- [x] **API endpoints completos** para clasificación individual y lotes
+
 ### 🔄 **PRÓXIMOS PASOS (Siguiente Sesión)**
 
-#### **Fase 3: Clasificación con IA OpenAI**
-1. Implementar OpenAI GPT-4 service completo
-2. Prompts optimizados para clasificación académica
-3. Batch processing de correos pendientes
-4. Sistema de confidence scoring
-
 #### **Fase 4: Frontend-Backend Integration**
-1. Conectar React con Flask API endpoints
-2. Implementar autenticación Microsoft en frontend
-3. Reemplazar mock data con datos reales de Outlook
-4. UI para sync, search, y reply functionality
+1. **Conectar React con Flask API** endpoints
+2. **Autenticación Microsoft** en frontend con OAuth2 flow
+3. **Reemplazar mock data** con datos reales de Outlook + OpenAI
+4. **UI para clasificación IA** - badges de confianza, reasoning
+5. **Sync functionality** con indicadores de clasificación automática
 
-#### **Fase 5: Production Deployment**
-1. PostgreSQL setup y configuración
-2. Docker compose para producción
-3. Environment variables y secrets
-4. Monitoring y logging
+#### **Fase 5: Advanced Features**
+1. **Email templates** para respuestas automáticas por contexto
+2. **Dashboard analytics** con métricas de clasificación IA
+3. **Bulk operations** - clasificar, mover, responder en lotes
+4. **Notifications system** para correos urgentes
+
+#### **Fase 6: Production Deployment**
+1. **PostgreSQL** setup y configuración
+2. **Docker compose** para producción
+3. **Environment variables** y secrets management
+4. **Monitoring y logging** con métricas IA
 
 ## 🎨 Capturas Actuales
 
@@ -178,7 +217,7 @@ MICROSOFT_REDIRECT_URI=http://localhost:5000/auth/microsoft/callback
 - `GET /api/microsoft/folders` - Obtener carpetas de correo
 
 #### **Email Management**
-- `POST /api/emails/sync` - Sincronizar correos desde Outlook
+- `POST /api/emails/sync` - Sincronizar correos desde Outlook **con clasificación IA**
 - `GET /api/emails/` - Listar correos con filtros y paginación
 - `GET /api/emails/{id}` - Obtener detalles de correo específico
 - `POST /api/emails/{id}/mark-read` - Marcar como leído
@@ -188,10 +227,17 @@ MICROSOFT_REDIRECT_URI=http://localhost:5000/auth/microsoft/callback
 - `GET /api/emails/search?q=query` - Buscar correos
 - `GET /api/emails/stats` - Estadísticas del dashboard
 
+#### **OpenAI Classification**
+- `POST /api/emails/classify` - Clasificar correos pendientes con IA
+- `POST /api/emails/{id}/classify` - Clasificar correo específico
+- `GET /api/emails/classification-stats` - Estadísticas de clasificación IA
+- `GET /api/emails/openai-status` - Estado del servicio OpenAI
+
 ---
 
 ---
 
 **Desarrollado con Claude Code (Sonnet 4)**  
 **Sesión 1**: Frontend + Backend Structure ✅  
-**Sesión 2**: Microsoft Graph Integration ✅
+**Sesión 2**: Microsoft Graph Integration ✅  
+**Sesión 3**: OpenAI Classification System ✅
