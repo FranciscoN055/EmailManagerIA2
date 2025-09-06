@@ -28,14 +28,14 @@ class Config:
     MICROSOFT_CLIENT_ID = os.environ.get('MICROSOFT_CLIENT_ID')
     MICROSOFT_CLIENT_SECRET = os.environ.get('MICROSOFT_CLIENT_SECRET')
     MICROSOFT_TENANT_ID = os.environ.get('MICROSOFT_TENANT_ID') or 'common'
-    MICROSOFT_AUTHORITY = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}"
+    MICROSOFT_AUTHORITY = f"https://login.microsoftonline.com/{os.environ.get('MICROSOFT_TENANT_ID') or 'common'}"
     MICROSOFT_SCOPE = [
-        'User.Read',
-        'Mail.Read',
-        'Mail.ReadWrite',
+        'https://graph.microsoft.com/User.Read',
+        'https://graph.microsoft.com/Mail.ReadWrite',
+        'https://graph.microsoft.com/Mail.Send',
         'offline_access'
     ]
-    MICROSOFT_REDIRECT_URI = 'http://localhost:5000/auth/microsoft/callback'
+    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'http://localhost:5000/auth/microsoft/callback'
     
     # OpenAI Configuration
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
@@ -68,7 +68,7 @@ class ProductionConfig(Config):
     
     # Override with production-specific settings
     CORS_ORIGINS = ['https://yourdomain.com']
-    MICROSOFT_REDIRECT_URI = 'https://yourdomain.com/auth/microsoft/callback'
+    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://yourdomain.com/auth/microsoft/callback'
 
 class TestingConfig(Config):
     """Testing configuration."""

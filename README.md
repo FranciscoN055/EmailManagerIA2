@@ -65,8 +65,10 @@ cd backend
 pip install -r requirements.txt
 
 # 2. Configurar variables de entorno (.env)
-MICROSOFT_CLIENT_ID=tu-client-id
-MICROSOFT_CLIENT_SECRET=tu-client-secret
+cp .env.example .env
+# Editar .env con tus credenciales:
+MICROSOFT_CLIENT_ID=tu-client-id-de-azure
+MICROSOFT_CLIENT_SECRET=tu-client-secret-de-azure
 OPENAI_API_KEY=tu-openai-key
 
 # 3. Configurar base de datos
@@ -79,6 +81,30 @@ python run.py
 # Abre http://127.0.0.1:5000
 ```
 
+### 🔧 **Configuración Microsoft Graph API**
+
+#### **1. Registrar App en Azure**
+1. Ve a [Azure Portal](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps)
+2. Click "New registration"
+3. Nombre: `Email Manager IA`
+4. Redirect URI: `http://localhost:5000/auth/microsoft/callback`
+5. Copiar **Application ID** → `MICROSOFT_CLIENT_ID`
+6. Generar **Client Secret** → `MICROSOFT_CLIENT_SECRET`
+
+#### **2. Configurar Permisos API**
+- `User.Read` - Leer perfil de usuario
+- `Mail.ReadWrite` - Leer y escribir correos
+- `Mail.Send` - Enviar correos
+- `offline_access` - Refresh tokens
+
+#### **3. Variables de Entorno Requeridas**
+```env
+MICROSOFT_CLIENT_ID=12345678-1234-1234-1234-123456789012
+MICROSOFT_CLIENT_SECRET=abcXYZ123~secretvalue
+MICROSOFT_TENANT_ID=common
+MICROSOFT_REDIRECT_URI=http://localhost:5000/auth/microsoft/callback
+```
+
 ## 🗄️ Categorías de Urgencia
 
 1. 🔴 **Urgente** (próxima hora) - Rojo
@@ -89,7 +115,7 @@ python run.py
 
 ## 🚀 Estado Actual del Proyecto
 
-### ✅ **COMPLETADO EN ESTA SESIÓN**
+### ✅ **COMPLETADO EN SESIONES PREVIAS**
 - [x] **Frontend React completo** con dashboard Kanban funcional
 - [x] **Backend Flask completo** with modelos de base de datos
 - [x] **Sistema de temas** claro/oscuro
@@ -98,22 +124,35 @@ python run.py
 - [x] **Estructura completa** de archivos y configuraciones
 - [x] **Documentación** comprehensive
 
+### 🆕 **COMPLETADO EN ESTA SESIÓN - Microsoft Graph Integration**
+- [x] **Microsoft Graph Service completo** con MSAL authentication
+- [x] **OAuth2 Flow implementado** - Login, callback, disconnect
+- [x] **Email Synchronization API** - Sync desde Outlook con pagination
+- [x] **Email Management endpoints** - CRUD operations y búsqueda
+- [x] **Email Sending capabilities** - Envío de correos y respuestas
+- [x] **Database Models actualizados** - Soporte para Microsoft tokens
+- [x] **Environment templates** - Setup completo con .env.example
+- [x] **API Testing completo** - Todos los endpoints funcionando
+
 ### 🔄 **PRÓXIMOS PASOS (Siguiente Sesión)**
 
-#### **Fase 2: Integración Microsoft Graph**
-1. Implementar autenticación OAuth2
-2. Sincronización de correos desde Outlook  
-3. API endpoints para conexión de cuentas
+#### **Fase 3: Clasificación con IA OpenAI**
+1. Implementar OpenAI GPT-4 service completo
+2. Prompts optimizados para clasificación académica
+3. Batch processing de correos pendientes
+4. Sistema de confidence scoring
 
-#### **Fase 3: Clasificación con IA**
-1. Prompts optimizados para OpenAI GPT-4
-2. Lógica de clasificación por urgencia
-3. Procesamiento en lotes de correos
+#### **Fase 4: Frontend-Backend Integration**
+1. Conectar React con Flask API endpoints
+2. Implementar autenticación Microsoft en frontend
+3. Reemplazar mock data con datos reales de Outlook
+4. UI para sync, search, y reply functionality
 
-#### **Fase 4: Integración Frontend-Backend**
-1. Conectar React con Flask API
-2. Reemplazar mock data con datos reales
-3. Autenticación en frontend
+#### **Fase 5: Production Deployment**
+1. PostgreSQL setup y configuración
+2. Docker compose para producción
+3. Environment variables y secrets
+4. Monitoring y logging
 
 ## 🎨 Capturas Actuales
 
@@ -127,8 +166,32 @@ python run.py
 **Backend API en**: `http://127.0.0.1:5000`
 - ✅ Health check endpoint
 - ✅ Estructura completa de modelos
-- ✅ Configuración de APIs listas
+- ✅ Microsoft Graph integration completa
+
+### 🔗 **API Endpoints Disponibles**
+
+#### **Microsoft Graph Authentication**
+- `GET /api/microsoft/auth/login` - Iniciar OAuth2 flow
+- `GET /api/microsoft/auth/callback` - Callback de Microsoft
+- `POST /api/microsoft/auth/disconnect` - Desconectar cuenta
+- `GET /api/microsoft/profile` - Obtener perfil de usuario
+- `GET /api/microsoft/folders` - Obtener carpetas de correo
+
+#### **Email Management**
+- `POST /api/emails/sync` - Sincronizar correos desde Outlook
+- `GET /api/emails/` - Listar correos con filtros y paginación
+- `GET /api/emails/{id}` - Obtener detalles de correo específico
+- `POST /api/emails/{id}/mark-read` - Marcar como leído
+- `POST /api/emails/{id}/update-urgency` - Actualizar categoría de urgencia
+- `POST /api/emails/{id}/reply` - Responder a correo específico
+- `POST /api/emails/send` - Enviar nuevo correo
+- `GET /api/emails/search?q=query` - Buscar correos
+- `GET /api/emails/stats` - Estadísticas del dashboard
 
 ---
 
-**Desarrollado con Claude Code (Sonnet 4) - Sesión 1 Completada** ✅
+---
+
+**Desarrollado con Claude Code (Sonnet 4)**  
+**Sesión 1**: Frontend + Backend Structure ✅  
+**Sesión 2**: Microsoft Graph Integration ✅
