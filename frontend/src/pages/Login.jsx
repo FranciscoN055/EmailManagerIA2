@@ -1,0 +1,62 @@
+import { Container, Paper, Typography, Button, Box } from '@mui/material';
+import { Microsoft } from '@mui/icons-material';
+
+const Login = () => {
+  const handleMicrosoftLogin = () => {
+    // Implementaremos la lógica de autenticación con Microsoft más adelante
+    console.log('Iniciando sesión con Microsoft...');
+    alert('Función de login será implementada en el siguiente paso');
+  };
+
+  return (
+    <Container component="main" maxWidth="sm">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Typography component="h1" variant="h4" gutterBottom>
+              Email Manager IA
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Conecta tu cuenta de Outlook para comenzar
+            </Typography>
+          </Box>
+
+          <Box sx={{ mt: 3 }}>
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              startIcon={<Microsoft />}
+              onClick={handleMicrosoftLogin}
+              sx={{
+                py: 1.5,
+                backgroundColor: '#0078d4',
+                '&:hover': {
+                  backgroundColor: '#106ebe',
+                },
+              }}
+            >
+              Conectar con Microsoft Outlook
+            </Button>
+          </Box>
+
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary">
+              Al conectar tu cuenta, autorizas a Email Manager IA a acceder 
+              y analizar tus correos para organizarlos por urgencia.
+            </Typography>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
+  );
+};
+
+export default Login;
