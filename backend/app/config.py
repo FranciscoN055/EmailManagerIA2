@@ -1,0 +1,85 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+class Config:
+    """Base configuration class."""
+    
+    # Flask Configuration
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'fallback-secret-key-for-development-only'
+    FLASK_ENV = os.environ.get('FLASK_ENV') or 'production'
+    
+    # JWT Configuration
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'fallback-jwt-secret-key'
+    JWT_ACCESS_TOKEN_EXPIRES = 3600  # 1 hour
+    JWT_REFRESH_TOKEN_EXPIRES = 2592000  # 30 days
+    
+    # Database Configuration
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///email_manager.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
+    
+    # Microsoft Graph API Configuration
+    MICROSOFT_CLIENT_ID = os.environ.get('MICROSOFT_CLIENT_ID')
+    MICROSOFT_CLIENT_SECRET = os.environ.get('MICROSOFT_CLIENT_SECRET')
+    MICROSOFT_TENANT_ID = os.environ.get('MICROSOFT_TENANT_ID') or 'common'
+    MICROSOFT_AUTHORITY = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}"
+    MICROSOFT_SCOPE = [
+        'User.Read',
+        'Mail.Read',
+        'Mail.ReadWrite',
+        'offline_access'
+    ]
+    MICROSOFT_REDIRECT_URI = 'http://localhost:5000/auth/microsoft/callback'
+    
+    # OpenAI Configuration
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    OPENAI_MODEL = 'gpt-4'
+    OPENAI_MAX_TOKENS = 1000
+    OPENAI_TEMPERATURE = 0.3
+    
+    # Redis Configuration (for Celery)
+    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
+    
+    # Email Processing Configuration
+    MAX_EMAILS_PER_SYNC = 100
+    SYNC_INTERVAL_MINUTES = 15
+    AI_CLASSIFICATION_BATCH_SIZE = 10
+    
+    # CORS Configuration
+    CORS_ORIGINS = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175']
+
+class DevelopmentConfig(Config):
+    """Development configuration."""
+    DEBUG = True
+    FLASK_ENV = 'development'
+    
+class ProductionConfig(Config):
+    """Production configuration."""
+    DEBUG = False
+    FLASK_ENV = 'production'
+    
+    # Override with production-specific settings
+    CORS_ORIGINS = ['https://yourdomain.com']
+    MICROSOFT_REDIRECT_URI = 'https://yourdomain.com/auth/microsoft/callback'
+
+class TestingConfig(Config):
+    """Testing configuration."""
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    JWT_ACCESS_TOKEN_EXPIRES = 1  # 1 second for testing
+
+# Configuration dictionary
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestingConfig,
+    'default': DevelopmentConfig
+}
