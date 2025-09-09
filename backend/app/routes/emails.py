@@ -28,6 +28,7 @@ def sync_emails():
     """Sync emails from Microsoft Graph."""
     try:
         user_id = get_jwt_identity()
+        logger.info(f"Starting email sync for user {user_id}")
         
         # Get email account
         email_account = EmailAccount.query.filter_by(
@@ -36,7 +37,10 @@ def sync_emails():
             is_active=True
         ).first()
         
+        logger.info(f"Found email account: {email_account is not None}")
+        
         if not email_account:
+            logger.warning(f"No Microsoft account found for user {user_id}")
             return jsonify({
                 'success': False,
                 'error': 'Microsoft account not connected'
@@ -50,6 +54,15 @@ def sync_emails():
         
         service = MicrosoftGraphService()
         
+        # Check if we have a valid access token
+        if not email_account.access_token:
+            return jsonify({
+                'success': False,
+                'error': 'No access token available. Please reconnect your Microsoft account.'
+            }), 401
+        
+        logger.info(f"Attempting to sync {top} emails from {folder} folder for user {user_id}")
+        
         # Fetch emails from Microsoft Graph
         emails_data = service.get_user_emails(
             email_account.access_token,
@@ -57,10 +70,18 @@ def sync_emails():
             folder=folder
         )
         
-        if not emails_data or 'value' not in emails_data:
+        if not emails_data:
+            logger.error(f"Failed to fetch emails - likely token expired for user {user_id}")
             return jsonify({
                 'success': False,
-                'error': 'Failed to fetch emails from Microsoft'
+                'error': 'Failed to fetch emails from Microsoft. Token may have expired. Please reconnect your account.'
+            }), 401
+            
+        if 'value' not in emails_data:
+            logger.error(f"Unexpected response format from Microsoft Graph: {emails_data}")
+            return jsonify({
+                'success': False,
+                'error': 'Unexpected response format from Microsoft Graph'
             }), 400
         
         synced_count = 0
@@ -69,57 +90,61 @@ def sync_emails():
         new_emails = []
         
         for email_data in emails_data['value']:
-            # Check if email already exists
-            existing_email = Email.query.filter_by(
-                microsoft_message_id=email_data['id']
-            ).first()
-            
-            if existing_email:
+            try:
+                # Check if email already exists
+                existing_email = Email.query.filter_by(
+                    microsoft_email_id=email_data['id']
+                ).first()
+                
+                if existing_email:
+                    skipped_count += 1
+                    continue
+                
+                # Extract email preview
+                body_preview = extract_email_preview(
+                    email_data.get('body', {}).get('content', ''),
+                    max_length=500
+                )
+                
+                # Create new email record
+                email = Email(
+                    email_account_id=email_account.id,
+                    microsoft_email_id=email_data['id'],
+                    subject=email_data.get('subject', ''),
+                    sender_email=email_data.get('from', {}).get('emailAddress', {}).get('address', ''),
+                    sender_name=email_data.get('from', {}).get('emailAddress', {}).get('name', ''),
+                    recipient_emails=email_account.email_address,
+                    body_content=email_data.get('body', {}).get('content', ''),
+                    body_preview=body_preview,
+                    received_at=datetime.fromisoformat(
+                        email_data['receivedDateTime'].replace('Z', '+00:00')
+                    ),
+                    is_read=email_data.get('isRead', False),
+                    has_attachments=email_data.get('hasAttachments', False),
+                    urgency_category='medium',  # Default, will be updated by AI
+                    priority_level=3,
+                    ai_confidence=0.0,
+                    processing_status='pending'
+                )
+                
+                db.session.add(email)
+                db.session.flush()  # Get email ID
+                
+                new_emails.append({
+                    'email_id': str(email.id),
+                    'subject': email.subject,
+                    'sender_name': email.sender_name,
+                    'sender_email': email.sender_email,
+                    'body_preview': body_preview,
+                    'received_at': email.received_at.isoformat()
+                })
+                
+                synced_count += 1
+                
+            except Exception as e:
+                logger.warning(f"Skipping email {email_data['id']} due to error: {str(e)}")
                 skipped_count += 1
                 continue
-            
-            # Extract email preview
-            body_preview = extract_email_preview(
-                email_data.get('body', {}).get('content', ''),
-                max_length=500
-            )
-            
-            # Create new email record
-            email = Email(
-                user_id=user_id,
-                email_account_id=email_account.id,
-                microsoft_message_id=email_data['id'],
-                subject=email_data.get('subject', ''),
-                sender_email=email_data.get('from', {}).get('emailAddress', {}).get('address', ''),
-                sender_name=email_data.get('from', {}).get('emailAddress', {}).get('name', ''),
-                recipient_email=email_account.email_address,
-                body_content=email_data.get('body', {}).get('content', ''),
-                body_preview=body_preview,
-                received_at=datetime.fromisoformat(
-                    email_data['receivedDateTime'].replace('Z', '+00:00')
-                ),
-                is_read=email_data.get('isRead', False),
-                has_attachments=email_data.get('hasAttachments', False),
-                importance=email_data.get('importance', 'normal'),
-                urgency_category='medium',  # Default, will be updated by AI
-                priority_level=3,
-                confidence_score=0.0,
-                processing_status='pending'
-            )
-            
-            db.session.add(email)
-            db.session.flush()  # Get email ID
-            
-            new_emails.append({
-                'email_id': str(email.id),
-                'subject': email.subject,
-                'sender_name': email.sender_name,
-                'sender_email': email.sender_email,
-                'body_preview': body_preview,
-                'received_at': email.received_at.isoformat()
-            })
-            
-            synced_count += 1
         
         # Commit emails first
         db.session.commit()
@@ -144,9 +169,12 @@ def sync_emails():
                         if email:
                             email.urgency_category = classification.get('urgency_category', 'medium')
                             email.priority_level = get_priority_from_urgency(email.urgency_category)
-                            email.confidence_score = classification.get('confidence_score', 0.0)
-                            email.ai_classification_reason = classification.get('reasoning', '')
-                            email.processing_status = 'classified'
+                            email.ai_confidence = classification.get('confidence_score', 0.0)
+                            email.ai_reasoning = classification.get('reasoning', '')
+                            email.processing_status = 'completed'
+                            email.is_classified = True
+                            email.classified_at = datetime.now()
+                            email.classification_model = openai_service.model
                             classified_count += 1
                 
                 # Commit classification updates
@@ -198,8 +226,26 @@ def get_emails():
         status = request.args.get('status')
         search = request.args.get('search', '').strip()
         
-        # Build query
-        query = Email.query.filter_by(user_id=user_id)
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        if not account_ids:
+            return jsonify({
+                'success': True,
+                'emails': [],
+                'pagination': {
+                    'page': 1,
+                    'pages': 0,
+                    'per_page': per_page,
+                    'total': 0,
+                    'has_next': False,
+                    'has_prev': False
+                }
+            })
+        
+        # Build query for emails from user's accounts
+        query = Email.query.filter(Email.email_account_id.in_(account_ids))
         
         if urgency:
             query = query.filter(Email.urgency_category == urgency)
@@ -242,9 +288,9 @@ def get_emails():
                 'has_attachments': email.has_attachments,
                 'urgency_category': email.urgency_category,
                 'priority_level': email.priority_level,
-                'confidence_score': email.confidence_score,
+                'confidence_score': email.ai_confidence,
                 'processing_status': email.processing_status,
-                'ai_classification_reason': email.ai_classification_reason
+                'ai_classification_reason': email.ai_reasoning
             })
         
         return jsonify({
@@ -274,9 +320,13 @@ def get_email_detail(email_id):
     try:
         user_id = get_jwt_identity()
         
-        email = Email.query.filter_by(
-            id=email_id,
-            user_id=user_id
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        email = Email.query.filter(
+            Email.id == email_id,
+            Email.email_account_id.in_(account_ids)
         ).first()
         
         if not email:
@@ -294,18 +344,18 @@ def get_email_detail(email_id):
                     'name': email.sender_name,
                     'email': email.sender_email
                 },
-                'recipient': email.recipient_email,
+                'recipient': email.recipient_emails,
                 'body_content': email.body_content,
                 'body_preview': email.body_preview,
                 'received_at': email.received_at.isoformat(),
                 'is_read': email.is_read,
                 'has_attachments': email.has_attachments,
-                'importance': email.importance,
+                'is_important': email.is_important,
                 'urgency_category': email.urgency_category,
                 'priority_level': email.priority_level,
-                'confidence_score': email.confidence_score,
+                'confidence_score': email.ai_confidence,
                 'processing_status': email.processing_status,
-                'ai_classification_reason': email.ai_classification_reason,
+                'ai_classification_reason': email.ai_reasoning,
                 'created_at': email.created_at.isoformat(),
                 'updated_at': email.updated_at.isoformat()
             }
@@ -325,9 +375,13 @@ def mark_email_read(email_id):
     try:
         user_id = get_jwt_identity()
         
-        email = Email.query.filter_by(
-            id=email_id,
-            user_id=user_id
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        email = Email.query.filter(
+            Email.id == email_id,
+            Email.email_account_id.in_(account_ids)
         ).first()
         
         if not email:
@@ -342,11 +396,11 @@ def mark_email_read(email_id):
             is_active=True
         ).first()
         
-        if email_account and email.microsoft_message_id:
+        if email_account and email.microsoft_email_id:
             service = MicrosoftGraphService()
             service.mark_email_as_read(
                 email_account.access_token,
-                email.microsoft_message_id
+                email.microsoft_email_id
             )
         
         # Update local record
@@ -388,9 +442,13 @@ def update_email_urgency(email_id):
                 'error': f'Invalid urgency category. Must be one of: {", ".join(valid_urgencies)}'
             }), 400
         
-        email = Email.query.filter_by(
-            id=email_id,
-            user_id=user_id
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        email = Email.query.filter(
+            Email.id == email_id,
+            Email.email_account_id.in_(account_ids)
         ).first()
         
         if not email:
@@ -435,13 +493,28 @@ def get_email_stats():
     try:
         user_id = get_jwt_identity()
         
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        if not account_ids:
+            return jsonify({
+                'success': True,
+                'stats': {
+                    'total_emails': 0,
+                    'unread_emails': 0,
+                    'by_urgency': {'urgent': 0, 'high': 0, 'medium': 0, 'low': 0, 'processed': 0},
+                    'by_status': {'pending': 0, 'processing': 0, 'classified': 0, 'processed': 0}
+                }
+            })
+        
         # Total emails
-        total_emails = Email.query.filter_by(user_id=user_id).count()
+        total_emails = Email.query.filter(Email.email_account_id.in_(account_ids)).count()
         
         # Unread emails
-        unread_emails = Email.query.filter_by(
-            user_id=user_id,
-            is_read=False
+        unread_emails = Email.query.filter(
+            Email.email_account_id.in_(account_ids),
+            Email.is_read == False
         ).count()
         
         # Emails by urgency
@@ -449,9 +522,9 @@ def get_email_stats():
         urgencies = ['urgent', 'high', 'medium', 'low', 'processed']
         
         for urgency in urgencies:
-            count = Email.query.filter_by(
-                user_id=user_id,
-                urgency_category=urgency
+            count = Email.query.filter(
+                Email.email_account_id.in_(account_ids),
+                Email.urgency_category == urgency
             ).count()
             urgency_stats[urgency] = count
         
@@ -460,9 +533,9 @@ def get_email_stats():
         statuses = ['pending', 'processing', 'classified', 'processed']
         
         for status in statuses:
-            count = Email.query.filter_by(
-                user_id=user_id,
-                processing_status=status
+            count = Email.query.filter(
+                Email.email_account_id.in_(account_ids),
+                Email.processing_status == status
             ).count()
             status_stats[status] = count
         
@@ -556,10 +629,14 @@ def reply_to_email(email_id):
                 'error': 'Reply body is required'
             }), 400
         
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
         # Get the original email
-        email = Email.query.filter_by(
-            id=email_id,
-            user_id=user_id
+        email = Email.query.filter(
+            Email.id == email_id,
+            Email.email_account_id.in_(account_ids)
         ).first()
         
         if not email:
@@ -593,7 +670,7 @@ def reply_to_email(email_id):
             to_email=email.sender_email,
             subject=reply_subject,
             body=data['body'],
-            reply_to_message_id=email.microsoft_message_id
+            reply_to_message_id=email.microsoft_email_id
         )
         
         if success:
@@ -722,8 +799,19 @@ def classify_emails():
                 'error': 'Must specify email_ids or set classify_all_pending=true'
             }), 400
         
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        if not account_ids:
+            return jsonify({
+                'success': True,
+                'message': 'No email accounts found',
+                'classified': 0
+            })
+        
         # Build query for emails to classify
-        query = Email.query.filter_by(user_id=user_id)
+        query = Email.query.filter(Email.email_account_id.in_(account_ids))
         
         if email_ids:
             query = query.filter(Email.id.in_(email_ids))
@@ -770,9 +858,12 @@ def classify_emails():
                 
                 email.urgency_category = classification.get('urgency_category', 'medium')
                 email.priority_level = get_priority_from_urgency(email.urgency_category)
-                email.confidence_score = classification.get('confidence_score', 0.0)
-                email.ai_classification_reason = classification.get('reasoning', '')
+                email.ai_confidence = classification.get('confidence_score', 0.0)
+                email.ai_reasoning = classification.get('reasoning', '')
                 email.processing_status = 'classified'
+                email.is_classified = True
+                email.classified_at = datetime.now()
+                email.classification_model = openai_service.model
                 
                 classified_count += 1
         
@@ -803,9 +894,13 @@ def classify_single_email(email_id):
     try:
         user_id = get_jwt_identity()
         
-        email = Email.query.filter_by(
-            id=email_id,
-            user_id=user_id
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        email = Email.query.filter(
+            Email.id == email_id,
+            Email.email_account_id.in_(account_ids)
         ).first()
         
         if not email:
@@ -830,9 +925,12 @@ def classify_single_email(email_id):
         # Update email
         email.urgency_category = classification.get('urgency_category', 'medium')
         email.priority_level = get_priority_from_urgency(email.urgency_category)
-        email.confidence_score = classification.get('confidence_score', 0.0)
-        email.ai_classification_reason = classification.get('reasoning', '')
+        email.ai_confidence = classification.get('confidence_score', 0.0)
+        email.ai_reasoning = classification.get('reasoning', '')
         email.processing_status = 'classified'
+        email.is_classified = True
+        email.classified_at = datetime.now()
+        email.classification_model = openai_service.model
         
         db.session.commit()
         
@@ -846,8 +944,8 @@ def classify_single_email(email_id):
                 'id': str(email.id),
                 'urgency_category': email.urgency_category,
                 'priority_level': email.priority_level,
-                'confidence_score': email.confidence_score,
-                'reasoning': email.ai_classification_reason
+                'confidence_score': email.ai_confidence,
+                'reasoning': email.ai_reasoning
             },
             'classification': classification,
             'priority_suggestion': priority_suggestion
@@ -867,10 +965,21 @@ def get_classification_stats():
     try:
         user_id = get_jwt_identity()
         
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
+        
+        if not account_ids:
+            return jsonify({
+                'success': True,
+                'message': 'No email accounts found',
+                'stats': {}
+            })
+        
         # Get all classified emails
-        emails = Email.query.filter_by(
-            user_id=user_id,
-            processing_status='classified'
+        emails = Email.query.filter(
+            Email.email_account_id.in_(account_ids),
+            Email.processing_status == 'classified'
         ).all()
         
         if not emails:
@@ -885,7 +994,7 @@ def get_classification_stats():
         for email in emails:
             classifications.append({
                 'urgency_category': email.urgency_category,
-                'confidence_score': email.confidence_score,
+                'confidence_score': email.ai_confidence,
                 'sender_type': 'externo',  # Would need to store this in DB
                 'email_type': 'academico',  # Would need to store this in DB
                 'requires_immediate_action': email.urgency_category in ['urgent', 'high']
@@ -896,13 +1005,14 @@ def get_classification_stats():
         stats = openai_service.get_classification_stats(classifications)
         
         # Add timing stats
-        recent_emails = Email.query.filter_by(
-            user_id=user_id,
-            processing_status='classified'
-        ).filter(Email.created_at >= datetime.now() - timedelta(days=7)).count()
+        recent_emails = Email.query.filter(
+            Email.email_account_id.in_(account_ids),
+            Email.processing_status == 'classified',
+            Email.created_at >= datetime.now() - timedelta(days=7)
+        ).count()
         
         stats['recent_classified'] = recent_emails
-        stats['total_emails'] = Email.query.filter_by(user_id=user_id).count()
+        stats['total_emails'] = Email.query.filter(Email.email_account_id.in_(account_ids)).count()
         stats['classification_coverage'] = round((len(emails) / stats['total_emails']) * 100, 1) if stats['total_emails'] > 0 else 0
         
         return jsonify({
@@ -927,15 +1037,23 @@ def get_openai_status():
         
         # Add some usage stats if available
         user_id = get_jwt_identity()
-        pending_count = Email.query.filter_by(
-            user_id=user_id,
-            processing_status='pending'
-        ).count()
+        # Get user's email accounts first
+        user_email_accounts = EmailAccount.query.filter_by(user_id=user_id).all()
+        account_ids = [account.id for account in user_email_accounts]
         
-        classified_count = Email.query.filter_by(
-            user_id=user_id,
-            processing_status='classified'
-        ).count()
+        if not account_ids:
+            pending_count = 0
+            classified_count = 0
+        else:
+            pending_count = Email.query.filter(
+                Email.email_account_id.in_(account_ids),
+                Email.processing_status == 'pending'
+            ).count()
+            
+            classified_count = Email.query.filter(
+                Email.email_account_id.in_(account_ids),
+                Email.processing_status == 'classified'
+            ).count()
         
         status['user_stats'] = {
             'pending_classification': pending_count,

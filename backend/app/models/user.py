@@ -1,23 +1,20 @@
 import uuid
 from datetime import datetime, timezone
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, String, DateTime, Boolean
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-
-db = SQLAlchemy()
+from app import db
 
 class User(db.Model):
     """User model for storing user information."""
     
     __tablename__ = 'users'
     
-    # Primary key using UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Primary key using string (for SQLite compatibility)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
     # User information
     email = Column(String(255), unique=True, nullable=False, index=True)
-    name = Column(String(255), nullable=False)
+    full_name = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Microsoft Graph specific fields
@@ -41,7 +38,7 @@ class User(db.Model):
         return {
             'id': str(self.id),
             'email': self.email,
-            'name': self.name,
+            'name': self.full_name,
             'is_active': self.is_active,
             'microsoft_user_id': self.microsoft_user_id,
             'profile_picture_url': self.profile_picture_url,

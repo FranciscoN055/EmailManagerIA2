@@ -1,9 +1,20 @@
 {
   "permissions": {
     "allow": [
+      "Bash(curl:*)",
+      "Bash(npm install)",
+      "Bash(find:*)",
+      "Bash(taskkill:*)",
+      "Bash(pip show:*)",
+      "Bash(PYTHONPATH=. python:*)",
+      "Bash(python -m flask run:*)",
       "Bash(npm run dev:*)",
-      "Bash(python run:*)",
-      "Bash(python:*)"
+      "Bash(netsh:*)",
+      "Bash(python:*)",
+      "Bash(npx vite:*)",
+      "Bash(del \"C:\\Users\\valel\\email-manager-ia\\login_direct.html\")",
+      "Bash(powershell:*)",
+      "Bash(ipconfig /flushdns)"
     ],
     "deny": [],
     "ask": []

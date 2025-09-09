@@ -27,7 +27,26 @@ const EmailCard = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  const getSenderName = (email) => {
+    // Handle different possible data structures for sender
+    if (email.sender_name && typeof email.sender_name === 'string') {
+      return email.sender_name;
+    }
+    if (email.sender) {
+      if (typeof email.sender === 'string') {
+        return email.sender;
+      }
+      if (typeof email.sender === 'object') {
+        return email.sender.name || email.sender.email || 'Unknown';
+      }
+    }
+    return 'Unknown Sender';
+  };
+
   const getInitials = (name) => {
+    if (!name || typeof name !== 'string') {
+      return '??';
+    }
     return name
       .split(' ')
       .map(word => word.charAt(0))
@@ -110,7 +129,7 @@ const EmailCard = ({
                 bgcolor: getPriorityColor(email.urgency),
               }}
             >
-              {getInitials(email.sender)}
+              {getInitials(getSenderName(email))}
             </Avatar>
           </Badge>
           
@@ -124,14 +143,14 @@ const EmailCard = ({
                 lineHeight: 1.2,
               }}
             >
-              {email.sender}
+              {getSenderName(email)}
             </Typography>
             <Typography 
               variant="caption" 
               color="text.secondary"
               sx={{ fontSize: '0.7rem' }}
             >
-              {getTimeAgo(email.timestamp)}
+              {getTimeAgo(email.received_at || email.timestamp)}
             </Typography>
           </Box>
 

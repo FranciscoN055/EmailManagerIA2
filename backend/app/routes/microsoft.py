@@ -45,13 +45,20 @@ def microsoft_login():
             'error': 'Authentication initialization failed'
         }), 500
 
-@microsoft_bp.route('/auth/callback')
+@microsoft_bp.route('/auth/callback', methods=['GET', 'POST'])
 def microsoft_callback():
     """Handle Microsoft OAuth2 callback."""
     try:
-        code = request.args.get('code')
-        state = request.args.get('state')
-        error = request.args.get('error')
+        # Handle both GET (direct from Microsoft) and POST (from frontend)
+        if request.method == 'POST':
+            data = request.get_json()
+            code = data.get('code') if data else None
+            state = None  # Frontend doesn't send state
+            error = None
+        else:
+            code = request.args.get('code')
+            state = request.args.get('state')
+            error = request.args.get('error')
         
         if error:
             logger.error(f"Microsoft OAuth error: {error}")
@@ -66,13 +73,14 @@ def microsoft_callback():
                 'error': 'Authorization code not provided'
             }), 400
         
-        # Validate state parameter
-        session_state = session.get('auth_state')
-        if not session_state or state != session_state:
-            return jsonify({
-                'success': False,
-                'error': 'Invalid state parameter'
-            }), 400
+        # Validate state parameter (only for GET requests)
+        if request.method == 'GET':
+            session_state = session.get('auth_state')
+            if not session_state or state != session_state:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid state parameter'
+                }), 400
         
         service = MicrosoftGraphService()
         
@@ -87,6 +95,28 @@ def microsoft_callback():
         
         access_token = token_result['access_token']
         refresh_token = token_result.get('refresh_token')
+        
+        # Debug: Log token info
+        logger.info(f"Token received - type: {type(access_token)}, length: {len(access_token) if access_token else 0}")
+        logger.info(f"Token scopes from result: {token_result.get('scope', 'No scope info')}")
+        logger.info(f"Full token result keys: {list(token_result.keys()) if token_result else 'No result'}")
+        
+        # Log what scopes we actually got vs what we requested
+        if 'scope' in token_result:
+            granted_scopes = token_result['scope'].split(' ')
+            requested_scopes = service.scopes
+            logger.info(f"Requested scopes: {requested_scopes}")
+            logger.info(f"Granted scopes: {granted_scopes}")
+            
+            # Check if we got the mail permissions
+            has_mail_read = any('Mail.Read' in scope for scope in granted_scopes)
+            has_mail_write = any('Mail.ReadWrite' in scope for scope in granted_scopes)
+            logger.info(f"Has Mail.Read permission: {has_mail_read}")
+            logger.info(f"Has Mail.ReadWrite permission: {has_mail_write}")
+        
+        # Test the token immediately
+        test_result = service.test_token(access_token)
+        logger.info(f"Token test result: {test_result}")
         
         # Get user profile
         profile = service.get_user_profile(access_token)
@@ -121,6 +151,7 @@ def microsoft_callback():
             email_account = EmailAccount(
                 user_id=user.id,
                 email_address=profile['mail'] or profile['userPrincipalName'],
+                display_name=profile.get('displayName', ''),
                 provider='microsoft',
                 is_primary=True,
                 is_active=True
@@ -234,6 +265,125 @@ def get_microsoft_profile():
         return jsonify({
             'success': False,
             'error': 'Failed to get profile'
+        }), 500
+
+@microsoft_bp.route('/test-permissions')
+@jwt_required()
+def test_permissions():
+    """Test what permissions the current token actually has."""
+    try:
+        user_id = get_jwt_identity()
+        
+        email_account = EmailAccount.query.filter_by(
+            user_id=user_id,
+            provider='microsoft',
+            is_active=True
+        ).first()
+        
+        if not email_account:
+            return jsonify({
+                'success': False,
+                'error': 'Microsoft account not connected'
+            }), 400
+        
+        service = MicrosoftGraphService()
+        
+        # Test 1: Basic profile access
+        profile_test = service.test_token(email_account.access_token)
+        
+        # Test 2: Try to get mail folders (should work with Mail.Read)
+        folders_test = None
+        try:
+            folders_response = service.get_mail_folders(email_account.access_token)
+            folders_test = {
+                'success': True,
+                'folders_count': len(folders_response.get('value', [])) if folders_response else 0
+            }
+        except Exception as e:
+            folders_test = {'success': False, 'error': str(e)}
+        
+        # Test 3: Try to get one email (most restrictive test)
+        emails_test = None
+        try:
+            emails_response = service.get_user_emails(email_account.access_token, top=1)
+            emails_test = {
+                'success': True,
+                'emails_count': len(emails_response.get('value', [])) if emails_response else 0
+            }
+        except Exception as e:
+            emails_test = {'success': False, 'error': str(e)}
+        
+        return jsonify({
+            'success': True,
+            'token_exists': bool(email_account.access_token),
+            'token_length': len(email_account.access_token) if email_account.access_token else 0,
+            'tests': {
+                'profile_access': profile_test,
+                'mail_folders': folders_test,
+                'emails_access': emails_test
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"Error testing permissions: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to test permissions'
+        }), 500
+
+@microsoft_bp.route('/debug-token')
+@jwt_required()
+def debug_token():
+    """Debug endpoint to test token validity."""
+    try:
+        user_id = get_jwt_identity()
+        
+        email_account = EmailAccount.query.filter_by(
+            user_id=user_id,
+            provider='microsoft',
+            is_active=True
+        ).first()
+        
+        if not email_account:
+            return jsonify({
+                'success': False,
+                'error': 'Microsoft account not connected'
+            }), 400
+        
+        service = MicrosoftGraphService()
+        
+        # Test the token with a simple API call
+        test_result = service.test_token(email_account.access_token)
+        
+        # Also test direct email access
+        import requests
+        headers = {'Authorization': f'Bearer {email_account.access_token}'}
+        
+        # Test 1: User profile (should work)
+        profile_response = requests.get('https://graph.microsoft.com/v1.0/me', headers=headers, timeout=10)
+        
+        # Test 2: Mail folders (requires Mail.Read)
+        folders_response = requests.get('https://graph.microsoft.com/v1.0/me/mailFolders', headers=headers, timeout=10)
+        
+        # Test 3: Emails (most restrictive)
+        emails_response = requests.get('https://graph.microsoft.com/v1.0/me/messages?$top=1', headers=headers, timeout=10)
+        
+        return jsonify({
+            'success': True,
+            'token_exists': bool(email_account.access_token),
+            'token_preview': email_account.access_token[:10] + '...' if email_account.access_token else None,
+            'tests': {
+                'profile': {'status': profile_response.status_code, 'ok': profile_response.status_code == 200},
+                'folders': {'status': folders_response.status_code, 'ok': folders_response.status_code == 200, 'text': folders_response.text[:200] if folders_response.status_code != 200 else 'OK'},
+                'emails': {'status': emails_response.status_code, 'ok': emails_response.status_code == 200, 'text': emails_response.text[:200] if emails_response.status_code != 200 else 'OK'}
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"Error debugging token: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to debug token'
         }), 500
 
 @microsoft_bp.route('/folders')

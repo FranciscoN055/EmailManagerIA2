@@ -30,6 +30,7 @@ import EmailColumn from '../components/email/EmailColumn';
 import ThemeToggle from '../components/common/ThemeToggle';
 import PriorityProgressBar from '../components/common/PriorityProgressBar';
 import { generateMockEmails, getEmailsByUrgency, getEmailStats } from '../utils/mockData';
+import { emailAPI } from '../services/api';
 
 const Dashboard = () => {
   const [emails, setEmails] = useState([]);
@@ -56,13 +57,60 @@ const Dashboard = () => {
     setStats(getEmailStats(emails));
   }, [emails]);
 
-  const loadEmails = () => {
+  const loadEmails = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      const mockEmails = generateMockEmails();
-      setEmails(mockEmails);
+    try {
+      // Check if we have a token first
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('No token found, using mock data');
+        setEmails(generateMockEmails());
+        setIsLoading(false);
+        return;
+      }
+
+      // First, sync emails from Microsoft Graph
+      console.log('Syncing emails from Microsoft Graph...');
+      const syncResponse = await emailAPI.syncEmails({ count: 50, classify: true });
+      console.log('Sync completed:', syncResponse.data);
+      
+      // Then, get all emails
+      console.log('Fetching emails...');
+      const response = await emailAPI.getEmails();
+      
+      if (response.data && response.data.emails) {
+        const apiEmails = response.data.emails.map(email => ({
+          id: email.id,
+          subject: email.subject,
+          sender: email.sender,
+          preview: email.body_preview,
+          urgency: email.urgency_category,
+          priority: email.priority_level,
+          isRead: email.is_read,
+          receivedAt: email.received_at,
+          hasAttachments: email.has_attachments,
+          confidence: email.confidence_score || 0,
+          aiReason: email.ai_classification_reason || ''
+        }));
+        setEmails(apiEmails);
+        console.log(`Successfully loaded ${apiEmails.length} real emails`);
+      } else {
+        console.warn('No emails returned from API, using mock data');
+        setEmails(generateMockEmails());
+      }
+    } catch (error) {
+      console.error('Failed to load emails:', error);
+      if (error.response?.status === 401) {
+        console.warn('Authentication error - redirecting to login');
+        localStorage.removeItem('token');
+        window.location.href = '/';
+        return;
+      }
+      console.log('Using mock data as fallback');
+      setEmails(generateMockEmails());
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handleMarkAsRead = (emailId) => {
@@ -186,7 +234,13 @@ const Dashboard = () => {
           {/* Acciones del header */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton color="inherit" onClick={loadEmails} disabled={isLoading}>
-              <Refresh sx={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
+              <Refresh sx={{ 
+                animation: isLoading ? 'spin 1s linear infinite' : 'none',
+                '@keyframes spin': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' }
+                }
+              }} />
             </IconButton>
             
             <ThemeToggle />
@@ -422,12 +476,6 @@ const Dashboard = () => {
         </MenuList>
       </Menu>
       
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </Box>
   );
 };

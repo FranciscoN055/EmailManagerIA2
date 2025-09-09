@@ -1,26 +1,24 @@
 import uuid
 from datetime import datetime, timezone
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-
-db = SQLAlchemy()
+from app import db
 
 class EmailAccount(db.Model):
     """Email account model for storing Microsoft Graph connected accounts."""
     
     __tablename__ = 'email_accounts'
     
-    # Primary key using UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Primary key using string (for SQLite compatibility)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
     # Foreign key to User
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     
     # Account information
     email_address = Column(String(255), nullable=False, index=True)
     display_name = Column(String(255), nullable=False)
+    provider = Column(String(50), default='microsoft', nullable=False)  # microsoft, gmail, etc.
     account_type = Column(String(50), default='outlook', nullable=False)  # outlook, exchange, etc.
     
     # Microsoft Graph tokens and authentication
@@ -30,6 +28,7 @@ class EmailAccount(db.Model):
     
     # Sync status and configuration
     is_active = Column(Boolean, default=True, nullable=False)
+    is_primary = Column(Boolean, default=False, nullable=False)
     sync_enabled = Column(Boolean, default=True, nullable=False)
     last_sync_at = Column(DateTime(timezone=True), nullable=True)
     sync_status = Column(String(50), default='pending', nullable=False)  # pending, syncing, completed, error

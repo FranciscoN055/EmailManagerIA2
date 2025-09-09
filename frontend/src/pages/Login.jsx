@@ -1,11 +1,20 @@
 import { Container, Paper, Typography, Button, Box } from '@mui/material';
 import { Microsoft } from '@mui/icons-material';
+import { microsoftAPI } from '../services/api';
 
 const Login = () => {
-  const handleMicrosoftLogin = () => {
-    // Implementaremos la lógica de autenticación con Microsoft más adelante
-    console.log('Iniciando sesión con Microsoft...');
-    alert('Función de login será implementada en el siguiente paso');
+  const handleMicrosoftLogin = async () => {
+    try {
+      console.log('Obteniendo URL de autenticación de Microsoft...');
+      const response = await microsoftAPI.getAuthUrl();
+      const authUrl = response.data.auth_url;
+      
+      // Redirigir a Microsoft para autenticación
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('Error al obtener URL de autenticación:', error);
+      alert('Error al conectar con Microsoft. Por favor, verifica que el servidor esté funcionando.');
+    }
   };
 
   return (

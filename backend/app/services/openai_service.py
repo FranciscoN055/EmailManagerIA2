@@ -4,7 +4,7 @@ Handles AI-powered email classification using OpenAI GPT models.
 Specialized for academic context - Universidad San Sebastián ICIF.
 """
 
-import openai
+from openai import OpenAI
 from flask import current_app
 import logging
 import json
@@ -24,13 +24,16 @@ class OpenAIService:
         self.max_tokens = self.config.get('OPENAI_MAX_TOKENS', 800)
         self.temperature = self.config.get('OPENAI_TEMPERATURE', 0.3)
         
+        self.client = None
         if self.api_key:
-            openai.api_key = self.api_key
+            self.client = OpenAI(api_key=self.api_key)
         
         # Academic context patterns
         self.urgent_keywords = [
             'urgente', 'emergencia', 'inmediato', 'hoy mismo', 'crítico',
-            'crisis', 'problema grave', 'accidente', 'suspensión', 'expulsión'
+            'crisis', 'problema grave', 'accidente', 'suspensión', 'expulsión',
+            'ayuda', 'socorro', 'grave', 'hospital', 'ambulancia', 'lesion',
+            'lesionado', 'herido', 'caída', 'golpe', 'sangre', 'desmayo'
         ]
         
         self.high_priority_keywords = [
@@ -70,10 +73,15 @@ CONTEXTO ACADÉMICO:
 - Fecha actual: {current_date}
 
 NIVELES DE URGENCIA:
-1. URGENTE (próxima 1 hora): Emergencias, crisis estudiantiles, problemas críticos que requieren acción inmediata
-2. ALTA (próximas 3 horas): Reuniones hoy, deadlines hoy, consultas de estudiantes con problemas académicos
+1. URGENTE (próxima 1 hora): Emergencias médicas, accidentes estudiantiles, crisis de seguridad, situaciones que requieren acción INMEDIATA
+2. ALTA (próximas 3 horas): Problemas académicos graves, reuniones urgentes hoy, deadlines críticos, estudiantes en crisis
 3. MEDIA (hoy): Consultas generales, coordinación con profesores, tareas administrativas regulares
 4. BAJA (mañana o más): Información general, invitaciones futuras, documentación no urgente
+
+PALABRAS CLAVE CRÍTICAS para URGENTE:
+- Emergencias: accidente, lesión, hospital, ambulancia, herido, sangre, desmayo, caída
+- Crisis: ayuda, socorro, crítico, grave, urgente, emergencia
+- Seguridad: peligro, amenaza, violencia, drogas, alcohol
 
 CORREO A CLASIFICAR:
 Remitente: {email_data.get('sender_name', '')} <{email_data.get('sender_email', '')}>
@@ -104,22 +112,21 @@ Responde SOLO en formato JSON válido:
     def classify_email(self, email_data: Dict) -> Dict:
         """Classify a single email using OpenAI GPT-4."""
         
-        if not self.api_key:
-            logger.warning("OpenAI API key not configured")
+        if not self.client:
+            logger.warning("OpenAI client not configured")
             return self._fallback_classification(email_data)
         
         try:
             prompt = self._build_classification_prompt(email_data)
             
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": "Eres un experto en clasificación de correos académicos. Responde siempre en JSON válido."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                timeout=30
+                temperature=self.temperature
             )
             
             content = response.choices[0].message.content.strip()
@@ -164,28 +171,28 @@ Responde SOLO en formato JSON válido:
         sender_email = email_data.get('sender_email', '').lower()
         text_content = f"{subject} {body}"
         
-        # Rule-based classification
-        urgency = 'medium'
+        # Rule-based classification - start with different defaults to avoid medium bias
+        urgency = 'low'  # Changed from 'medium' to 'low' as default
         confidence = 0.6
         reasoning = "Clasificación basada en reglas (OpenAI no disponible)"
         
-        # Check for urgent keywords
+        # Check for urgent keywords first
         if any(keyword in text_content for keyword in self.urgent_keywords):
             urgency = 'urgent'
-            confidence = 0.8
-            reasoning = "Detectadas palabras clave de urgencia"
+            confidence = 0.9
+            reasoning = "Detectadas palabras clave de urgencia crítica"
         
         # Check for high priority keywords
         elif any(keyword in text_content for keyword in self.high_priority_keywords):
             urgency = 'high'
-            confidence = 0.7
-            reasoning = "Detectadas palabras clave de alta prioridad"
+            confidence = 0.8
+            reasoning = "Detectadas palabras clave de alta prioridad académica"
         
-        # Student emails get higher priority
-        elif '@uss.cl' in sender_email or any(keyword in text_content for keyword in ['estudiante', 'alumno']):
-            urgency = 'high'
-            confidence = 0.6
-            reasoning = "Correo de estudiante - prioridad alta por defecto"
+        # Student emails get medium priority (not high by default)
+        elif '@uss.cl' in sender_email or any(keyword in text_content for keyword in ['estudiante', 'alumno', 'alumna']):
+            urgency = 'medium'
+            confidence = 0.7
+            reasoning = "Correo de estudiante USS - requiere atención académica"
         
         # Determine sender type
         sender_type = 'externo'

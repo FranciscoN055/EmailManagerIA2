@@ -6,6 +6,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 // Importar páginas
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import Callback from './pages/Callback';
 
 // Importar nuestro tema personalizado
 import { ThemeProvider, useTheme } from './hooks/useTheme.jsx';
@@ -23,8 +24,9 @@ const AppContent = () => {
       <Router>
         <div className="App">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/auth/callback" element={<Callback />} />
           </Routes>
         </div>
       </Router>

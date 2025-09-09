@@ -1,22 +1,19 @@
 import uuid
 from datetime import datetime, timezone
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey, Integer, Float
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey, Integer, Float, JSON
 from sqlalchemy.orm import relationship
-
-db = SQLAlchemy()
+from app import db
 
 class Email(db.Model):
     """Email model for storing email data and AI classifications."""
     
     __tablename__ = 'emails'
     
-    # Primary key using UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Primary key using string (for SQLite compatibility)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
     # Foreign key to EmailAccount
-    email_account_id = Column(UUID(as_uuid=True), ForeignKey('email_accounts.id', ondelete='CASCADE'), nullable=False)
+    email_account_id = Column(String(36), ForeignKey('email_accounts.id', ondelete='CASCADE'), nullable=False)
     
     # Microsoft Graph email ID for sync purposes
     microsoft_email_id = Column(String(255), unique=True, nullable=False, index=True)
@@ -55,7 +52,7 @@ class Email(db.Model):
     classification_model = Column(String(50), nullable=True)  # e.g., 'gpt-4', 'gpt-3.5-turbo'
     
     # Custom tags and metadata
-    custom_tags = Column(JSONB, nullable=True)  # Custom tags as JSON array
+    custom_tags = Column(JSON, nullable=True)  # Custom tags as JSON array
     user_notes = Column(Text, nullable=True)  # User-added notes
     
     # Processing metadata

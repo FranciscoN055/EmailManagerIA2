@@ -23,9 +23,9 @@ class MicrosoftGraphService:
         self.redirect_uri = self.config.get('MICROSOFT_REDIRECT_URI')
         self.authority = f"https://login.microsoftonline.com/{self.tenant_id}"
         self.scopes = [
-            "https://graph.microsoft.com/Mail.ReadWrite", 
-            "https://graph.microsoft.com/Mail.Send",
-            "https://graph.microsoft.com/User.Read"
+            "Mail.ReadWrite", 
+            "Mail.Send",
+            "User.Read"
         ]
     
     def get_status(self):
@@ -40,17 +40,30 @@ class MicrosoftGraphService:
     def get_auth_url(self, state=None):
         """Generate Microsoft OAuth2 authorization URL."""
         try:
-            app = msal.ConfidentialClientApplication(
-                self.client_id,
-                authority=self.authority,
-                client_credential=self.client_secret
-            )
+            # Build URL manually to ensure client_id is included
+            import urllib.parse
             
-            auth_url = app.get_authorization_request_url(
-                self.scopes,
-                redirect_uri=self.redirect_uri,
-                state=state
-            )
+            # Base URL
+            base_url = f"{self.authority}/oauth2/v2.0/authorize"
+            
+            # Parameters
+            params = {
+                'client_id': self.client_id,
+                'response_type': 'code',
+                'redirect_uri': self.redirect_uri,
+                'scope': ' '.join(self.scopes + ['offline_access', 'openid', 'profile']),
+                'response_mode': 'query',
+                'prompt': 'consent'  # Force consent to get fresh permissions
+            }
+            
+            if state:
+                params['state'] = state
+            
+            # Build complete URL
+            query_string = urllib.parse.urlencode(params)
+            auth_url = f"{base_url}?{query_string}"
+            
+            logger.info(f"Generated auth URL with client_id: {self.client_id[:10]}...")
             return auth_url
         except Exception as e:
             logger.error(f"Error generating auth URL: {str(e)}")
@@ -95,6 +108,23 @@ class MicrosoftGraphService:
             logger.error(f"Error refreshing token: {str(e)}")
             return None
     
+    def test_token(self, access_token):
+        """Test if token has correct permissions by getting user profile."""
+        headers = {'Authorization': f'Bearer {access_token}'}
+        url = 'https://graph.microsoft.com/v1.0/me'
+        
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            logger.info(f"Token test response: {response.status_code}")
+            if response.status_code == 200:
+                return {'success': True, 'data': response.json()}
+            else:
+                logger.error(f"Token test failed: {response.status_code} - {response.text}")
+                return {'success': False, 'status_code': response.status_code, 'error': response.text}
+        except Exception as e:
+            logger.error(f"Token test error: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
     def get_user_profile(self, access_token):
         """Get user profile information from Microsoft Graph."""
         headers = {'Authorization': f'Bearer {access_token}'}
@@ -130,15 +160,33 @@ class MicrosoftGraphService:
         url = f'https://graph.microsoft.com/v1.0/me/mailFolders/{folder}/messages'
         
         try:
+            logger.info(f"Making Graph API request to: {url}")
+            logger.info(f"Token length: {len(access_token) if access_token else 0}")
+            logger.info(f"Token preview: {access_token[:10] + '...' if access_token else 'No token'}")
+            
             response = requests.get(url, headers=headers, params=params, timeout=15)
             
+            logger.info(f"Graph API response status: {response.status_code}")
+            if response.status_code != 200:
+                logger.error(f"Graph API error details: {response.text}")
+                # Try to parse the error for more specific details
+                try:
+                    error_data = response.json()
+                    if 'error' in error_data:
+                        logger.error(f"Graph API error code: {error_data['error'].get('code')}")
+                        logger.error(f"Graph API error message: {error_data['error'].get('message')}")
+                except:
+                    pass
+            
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                logger.info(f"Successfully retrieved {len(result.get('value', []))} emails")
+                return result
             else:
                 logger.error(f"Error getting emails: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
-            logger.error(f"Error getting emails: {str(e)}")
+            logger.error(f"Exception getting emails: {str(e)}")
             return None
     
     def get_email_by_id(self, access_token, message_id):
