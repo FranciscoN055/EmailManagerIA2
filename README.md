@@ -6,20 +6,73 @@ Sistema inteligente de gestión de correos con clasificación automática por ur
 
 Email Manager IA es una solución completa que ayuda a directores académicos como Maritza Silva (ICIF) a gestionar hasta 200 correos diarios mediante:
 
-- **Clasificación automática por IA** usando OpenAI GPT-4
-- **Dashboard Kanban** tipo Trello con 5 categorías de urgencia
-- **Integración con Microsoft Outlook** via Graph API
-- **Interface profesional** con tema claro/oscuro
+- **🤖 Clasificación automática por IA** usando OpenAI GPT-4
+- **📊 Dashboard Kanban** tipo Trello con 5 categorías de urgencia
+- **📧 Integración con Microsoft Outlook** via Graph API OAuth2
+- **🎨 Interface profesional** con tema claro/oscuro
+- **🔐 Colaboración segura** con protección de API keys
 
 ## 🏗️ Arquitectura del Sistema
 
 ```
 📁 email-manager-ia/
-├── 🎨 frontend/          # React + Material-UI + Vite
-├── ⚙️  backend/          # Flask + PostgreSQL + OpenAI
-├── 📋 README.md
-├── 🐳 docker-compose.yml
-└── 📄 .gitignore
+├── 🎨 frontend/          # React + Material-UI + Vite (Puerto 5178)
+├── ⚙️  backend/          # Flask + SQLite + OpenAI + Microsoft Graph (Puerto 5000)
+├── 📋 CONTRIBUTING.md    # Guía para colaboradores
+├── 📄 .env.example       # Plantillas de variables de entorno
+├── 🔒 .gitignore         # Protección de archivos sensibles
+└── 📋 README.md
+```
+
+## 🚀 Instalación Rápida
+
+### Para Colaboradores (Nuevo en el Proyecto)
+
+1. **Clonar repositorio:**
+```bash
+git clone https://github.com/vhernandezl/email-manager-ia.git
+cd email-manager-ia
+```
+
+2. **Leer la guía de colaboración:**
+```bash
+# Lee CONTRIBUTING.md para instrucciones completas
+```
+
+3. **Configurar variables de entorno:**
+```bash
+# Backend
+cd backend
+cp .env.example .env
+# Editar .env con tus propias API keys
+
+# Frontend
+cd ../frontend
+cp .env.example .env
+```
+
+4. **Obtener tus propias API keys:**
+- **Microsoft Graph**: [Azure Portal](https://portal.azure.com)
+- **OpenAI**: [OpenAI Platform](https://platform.openai.com)
+
+### Para Desarrollo Local
+
+#### Backend (Terminal 1):
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+pip install -r requirements.txt
+python -m flask run --debug --port=5000
+```
+
+#### Frontend (Terminal 2):
+```bash
+cd frontend
+npm install
+npm run dev
+# Se abre automáticamente en http://localhost:5178
 ```
 
 ## 🎨 Frontend (React)
@@ -44,7 +97,7 @@ Email Manager IA es una solución completa que ayuda a directores académicos co
 cd frontend
 npm install
 npm run dev
-# Abre http://localhost:5175
+# Abre http://localhost:5178 (configurado para OAuth callback)
 ```
 
 ## ⚙️ Backend (Flask)
@@ -87,7 +140,7 @@ python run.py
 1. Ve a [Azure Portal](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps)
 2. Click "New registration"
 3. Nombre: `Email Manager IA`
-4. Redirect URI: `http://localhost:5000/auth/microsoft/callback`
+4. Redirect URI: `http://localhost:5178/auth/callback`
 5. Copiar **Application ID** → `MICROSOFT_CLIENT_ID`
 6. Generar **Client Secret** → `MICROSOFT_CLIENT_SECRET`
 
@@ -102,7 +155,7 @@ python run.py
 MICROSOFT_CLIENT_ID=12345678-1234-1234-1234-123456789012
 MICROSOFT_CLIENT_SECRET=abcXYZ123~secretvalue
 MICROSOFT_TENANT_ID=common
-MICROSOFT_REDIRECT_URI=http://localhost:5000/auth/microsoft/callback
+MICROSOFT_REDIRECT_URI=http://localhost:5178/auth/callback
 ```
 
 ### 🤖 **Configuración OpenAI GPT-4**
@@ -181,24 +234,34 @@ OPENAI_TEMPERATURE=0.3
 - [x] **Debugging completo** - Resueltos todos los errores de React y backend
 - [x] **Sistema totalmente operativo** - Listo para uso en producción
 
-### 🚀 **SISTEMA COMPLETAMENTE OPERATIVO**
-El Email Manager IA está **100% funcional** y listo para usar:
+### 🔐 **COMPLETADO EN SESIÓN 5 - Seguridad y Colaboración**
+- [x] **Problema OAuth2 solucionado** - Frontend configurado para puerto 5178
+- [x] **Protección de API keys** - Archivos .env nunca se suben a GitHub
+- [x] **Plantillas seguras** - .env.example para colaboradores
+- [x] **Guía de colaboración** - CONTRIBUTING.md con instrucciones completas
+- [x] **Flujo de trabajo seguro** - Sistema de ramas y Pull Requests
+- [x] **Repositorio en GitHub** - Proyecto listo para colaboración en equipo
+
+### 🚀 **SISTEMA COMPLETAMENTE OPERATIVO Y SEGURO**
+El Email Manager IA está **100% funcional y listo para colaboración**:
 - ✅ **Dashboard funcionando** con correos reales desde Outlook
 - ✅ **Clasificación IA automática** con OpenAI GPT-4
 - ✅ **Autenticación Microsoft** completamente integrada
 - ✅ **Interface React** sin errores, completamente estable
 - ✅ **Base de datos** sincronizada con correos reales
 - ✅ **API endpoints** todos funcionando correctamente
+- ✅ **Colaboración segura** con protección de credenciales
+- ✅ **Repositorio GitHub** preparado para trabajo en equipo
 
 ### 🔮 **POSIBLES MEJORAS FUTURAS (Opcional)**
 
-#### **Fase 5: Advanced Features**
+#### **Fase 6: Advanced Features**
 1. **Email templates** para respuestas automáticas por contexto
 2. **Dashboard analytics** con métricas de clasificación IA
 3. **Bulk operations** - clasificar, mover, responder en lotes
 4. **Notifications system** para correos urgentes
 
-#### **Fase 6: Production Deployment**
+#### **Fase 7: Production Deployment**
 1. **PostgreSQL** setup y configuración
 2. **Docker compose** para producción
 3. **Environment variables** y secrets management
@@ -268,10 +331,35 @@ El **Email Manager IA** está completamente funcional y operativo. Este sistema 
 
 ---
 
+## 👥 Colaboración en Equipo
+
+### 🔐 Flujo de Trabajo Seguro
+
+1. **Clonar repositorio**: `git clone https://github.com/vhernandezl/email-manager-ia.git`
+2. **Crear rama nueva**: `git checkout -b feature/tu-funcionalidad`
+3. **Hacer cambios y commits**: `git commit -m "feat: descripción"`
+4. **Subir rama**: `git push origin feature/tu-funcionalidad`
+5. **Crear Pull Request** en GitHub
+6. **Revisión y merge** a main protegida
+
+### ⚠️ Reglas Importantes
+- ❌ **Nunca subir archivos `.env`** con API keys reales
+- ❌ **Nunca hacer push directo a `main`**
+- ✅ **Siempre trabajar en ramas**
+- ✅ **Usar `.env.example` como plantilla**
+
+### 📞 Para Ayuda
+- Leer **CONTRIBUTING.md** para instrucciones detalladas
+- Crear **issues** en GitHub para problemas
+- Seguir convenciones de commits: `feat:`, `fix:`, `docs:`
+
+---
+
 **Desarrollado con Claude Code (Sonnet 4)**  
 **Sesión 1**: Frontend + Backend Structure ✅  
 **Sesión 2**: Microsoft Graph Integration ✅  
-**Sesión 3**: OpenAI Classification System ✅
-**Sesión 4**: Sistema Completamente Funcional ✅
+**Sesión 3**: OpenAI Classification System ✅  
+**Sesión 4**: Sistema Completamente Funcional ✅  
+**Sesión 5**: Seguridad y Colaboración ✅
 
-**🏆 PROYECTO COMPLETADO - SISTEMA 100% OPERATIVO** 🏆
+**🏆 PROYECTO COMPLETADO - SISTEMA 100% OPERATIVO Y SEGURO PARA COLABORACIÓN** 🏆
