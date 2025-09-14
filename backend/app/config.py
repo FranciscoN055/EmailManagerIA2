@@ -81,13 +81,13 @@ class ProductionConfig(Config):
     
     # Override with production-specific settings
     CORS_ORIGINS = [
-        'https://email-manager-backend.onrender.com',
+        'https://emailmanageriatesting.onrender.com',
         'https://email-manager-ia-testing.vercel.app',
         'https://email-manager-ia-testing-mj1cw77jx.vercel.app',
         'http://localhost:3000',
         'http://localhost:5173'
     ]
-    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://email-manager-backend.onrender.com/auth/callback'
+    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://emailmanageriatesting.onrender.com/auth/callback'
 
 class TestingConfig(Config):
     """Testing configuration."""
