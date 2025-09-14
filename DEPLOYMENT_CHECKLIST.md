@@ -107,13 +107,18 @@
 - [ ] Esperar build (2-3 minutos)
 - [ ] Copiar URL de Vercel
 
-#### Detener Servicios en Vercel
+#### Controlar Servicios en Vercel
+- [ ] **IMPORTANTE**: Vercel no "detiene" como Render, solo controla nuevos deployments
 - [ ] Ir a [vercel.com/dashboard](https://vercel.com/dashboard)
 - [ ] Buscar proyecto `email-manager-ia`
 - [ ] Ir a "Settings" → "General"
-- [ ] Hacer clic en "Pause Project" para detener
-- [ ] Hacer clic en "Resume Project" para reactivar
-- [ ] Para eliminar: "Settings" → "Danger Zone" → "Delete Project"
+- [ ] Buscar sección "Vercel Toolbar"
+- [ ] Cambiar "Production Deployments" a **OFF** (evita nuevos deployments)
+- [ ] Cambiar "Pre-production Deployments" a **OFF** (opcional)
+- [ ] Cambiar "Production Deployments" a **ON** para reactivar deployments
+- [ ] **Alternativa: Cancelar deployment**: Durante construcción → "Cancel" para detener
+- [ ] Para eliminar deployment: "Deployments" → tres puntos (...) → "Delete"
+- [ ] Para eliminar proyecto: "Settings" → "Danger Zone" → "Delete Project"
 
 ---
 
@@ -213,10 +218,10 @@
 
 ### 🔧 8. Gestión de Servicios
 
-#### Detener/Reactivar Servicios
-- [ ] **Render Backend**: Dashboard → Settings → Suspend/Resume Service
-- [ ] **Render Database**: Dashboard → Settings → Suspend/Resume Database
-- [ ] **Vercel Frontend**: Dashboard → Settings → Pause/Resume Project
+#### Controlar Servicios
+- [ ] **Render Backend**: Dashboard → Settings → Suspend/Resume Service (detiene completamente)
+- [ ] **Render Database**: Dashboard → Settings → Suspend/Resume Database (detiene completamente)
+- [ ] **Vercel Frontend**: Dashboard → Settings → General → Vercel Toolbar → Production Deployments ON/OFF (solo controla nuevos deployments)
 
 #### Eliminar Servicios Completamente
 - [ ] **Render**: Settings → Delete Service/Database

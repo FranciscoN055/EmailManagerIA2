@@ -274,22 +274,70 @@ node_modules/
 
 ### 5. Detener Servicios en Vercel
 
-#### Detener Frontend (Web App)
+#### Controlar Frontend (Web App)
+
+**⚠️ IMPORTANTE**: Vercel no "detiene" el servicio como Render. Solo controla los **nuevos deployments**. El sitio sigue funcionando con el último deployment.
+
 1. **Ir al Dashboard de Vercel**
    - Ve a [vercel.com/dashboard](https://vercel.com/dashboard)
    - Busca tu proyecto `email-manager-ia`
 
-2. **Detener el Proyecto**
+2. **Prevenir Nuevos Deployments**
    - Haz clic en el nombre del proyecto
    - Ve a la pestaña "Settings"
    - Haz clic en "General"
-   - Busca la sección "Project Status"
-   - Haz clic en "Pause Project"
-   - Confirma la pausa
+   - Busca la sección "Vercel Toolbar"
+   - Cambia "Production Deployments" a **OFF** (evita nuevos deployments)
+   - Cambia "Pre-production Deployments" a **OFF** (opcional)
+   - Los cambios se guardan automáticamente
 
-3. **Reactivar el Proyecto**
-   - En la misma página, haz clic en "Resume Project"
-   - El proyecto se reactivará automáticamente
+3. **Reactivar Deployments**
+   - En la misma página, cambia "Production Deployments" a **ON**
+   - Los nuevos cambios se desplegarán automáticamente
+
+#### Cancelar Deployment en Progreso
+1. **Durante la Construcción**
+   - Cuando Vercel inicie un nuevo deployment
+   - Te redirigirá automáticamente a la página de construcción
+   - Verás el progreso del build en tiempo real
+
+2. **Cancelar el Proceso**
+   - Busca el botón "Cancel" en la página de construcción
+   - Haz clic en "Cancel" para detener el deployment
+   - El sitio quedará con el último deployment exitoso
+
+#### Eliminar Deployment Específico
+1. **Ir a la pestaña "Deployments"**
+   - Haz clic en el nombre del proyecto
+   - Ve a la pestaña "Deployments"
+   - Busca el deployment que quieres eliminar
+
+2. **Eliminar Deployment**
+   - Haz clic en los tres puntos (...) del deployment
+   - Selecciona "Delete" para eliminar ese deployment
+   - **Nota**: Solo puedes eliminar deployments individuales, no el proyecto completo
+
+#### Alternativa: Cancelar Deployment
+1. **Cancelar Deployment en Progreso**
+   - Cuando Vercel inicie un nuevo deployment
+   - Ve a la página de construcción del deployment
+   - Haz clic en "Cancel" para detener el proceso
+   - El sitio quedará con el último deployment exitoso
+
+2. **Resultado**
+   - El sitio sigue activo con el último deployment
+   - No se aplican los cambios nuevos
+   - Perfecto para detener cambios no deseados
+
+#### Alternativa: Usar Dominio Personalizado
+1. **Configurar Dominio Personalizado**
+   - Ve a "Settings" → "Domains"
+   - Agrega un dominio personalizado
+   - Cambia el DNS para apuntar a otro lugar
+
+2. **Redirigir Tráfico**
+   - Usa el dominio personalizado para redirigir a otra página
+   - O apunta a un sitio de "mantenimiento"
 
 #### Eliminar Proyecto Completamente
 1. **Eliminar Proyecto**
