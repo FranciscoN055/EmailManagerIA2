@@ -169,20 +169,48 @@ const ReplyModalNew = ({
                   }}
                 />
               </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {email.subject}
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
+                <strong>Asunto:</strong> {email.subject}
               </Typography>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  fontSize: '0.875rem',
-                  lineHeight: 1.4,
-                  maxHeight: '120px',
-                  overflow: 'auto',
-                }}
-              >
-                {email.preview || email.body_preview || 'Sin contenido previo'}
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.8rem' }}>
+                <strong>Contenido del mensaje original:</strong>
               </Typography>
+              <Box sx={{ 
+                maxHeight: '200px', 
+                overflow: 'auto',
+                border: '1px solid #e0e0e0',
+                borderRadius: 1,
+                p: 1.5,
+                backgroundColor: 'background.paper',
+                fontSize: '0.875rem',
+                lineHeight: 1.4,
+                '& pre': {
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  margin: 0,
+                  fontFamily: 'inherit',
+                },
+                '& p': {
+                  margin: '0 0 8px 0',
+                  '&:last-child': {
+                    marginBottom: 0,
+                  }
+                }
+              }}>
+                {email.body_content ? (
+                  <div dangerouslySetInnerHTML={{ 
+                    __html: email.body_content.replace(/\n/g, '<br/>') 
+                  }} />
+                ) : email.body_preview ? (
+                  <div>{email.body_preview}</div>
+                ) : email.preview ? (
+                  <div>{email.preview}</div>
+                ) : (
+                  <div style={{ color: '#666', fontStyle: 'italic' }}>
+                    Sin contenido previo disponible
+                  </div>
+                )}
+              </Box>
             </Box>
           </Box>
         </Paper>
