@@ -88,7 +88,7 @@ class ProductionConfig(Config):
         'https://emailmanageriatesting.onrender.com',
         'https://email-manager-ia-testing.vercel.app',
         'https://email-manager-ia-testing-mj1cw77jx.vercel.app',
-        'https://email-manager-ia-testiong-7wyk0l360.vercel.app',
+        'https://email-manager-ia-testing-7wyk0l360.vercel.app',
         'https://email-manager-ia-testing-jksonan0r.vercel.app',
         'http://localhost:3000',
         'http://localhost:5173'
