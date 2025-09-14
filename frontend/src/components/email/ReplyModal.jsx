@@ -191,20 +191,35 @@ const ReplyModalNew = ({
                   fontFamily: 'inherit',
                 },
                 '& p': {
-                  margin: '0 0 8px 0',
+                  margin: '0 0 12px 0',
+                  lineHeight: '1.6',
                   '&:last-child': {
                     marginBottom: 0,
                   }
+                },
+                '& br': {
+                  lineHeight: '1.6',
                 }
               }}>
                 {email.body_content ? (
-                  <div dangerouslySetInnerHTML={{ 
-                    __html: email.body_content.replace(/\n/g, '<br/>') 
-                  }} />
+                  <div 
+                    dangerouslySetInnerHTML={{ 
+                      __html: email.body_content
+                        .replace(/\n\n/g, '</p><p>')  // Dobles saltos de línea = párrafos
+                        .replace(/\n/g, '<br/>')      // Saltos simples = <br/>
+                        .replace(/^/, '<p>')          // Inicio con <p>
+                        .replace(/$/, '</p>')         // Final con </p>
+                        .replace(/<p><\/p>/g, '')     // Limpiar párrafos vacíos
+                    }} 
+                  />
                 ) : email.body_preview ? (
-                  <div>{email.body_preview}</div>
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                    {email.body_preview}
+                  </div>
                 ) : email.preview ? (
-                  <div>{email.preview}</div>
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                    {email.preview}
+                  </div>
                 ) : (
                   <div style={{ color: '#666', fontStyle: 'italic' }}>
                     Sin contenido previo disponible
