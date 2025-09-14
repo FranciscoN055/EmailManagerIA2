@@ -5,7 +5,7 @@ services:
     plan: free
     pythonVersion: "3.11"
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python init_db_postgres.py || python init_db_simple.py && python run.py"
+    startCommand: "python run.py"
     healthCheckPath: "/api/health"
     envVars:
       - key: FLASK_ENV
