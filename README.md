@@ -26,6 +26,11 @@ Email Manager IA es una solución completa que ayuda a directores académicos co
 
 ## 🚀 Instalación Rápida
 
+### 📚 Guías de Despliegue
+- **[Guía Completa de Despliegue](DEPLOYMENT_GUIDE.md)** - Proceso detallado para Vercel + Render
+- **[Checklist de Despliegue](DEPLOYMENT_CHECKLIST.md)** - Lista de verificación paso a paso
+- **[Funcionalidad de Respuestas](REPLY_FUNCTIONALITY.md)** - Documentación de la funcionalidad de respuestas
+
 ### Para Colaboradores (Nuevo en el Proyecto)
 
 1. **Clonar repositorio:**
