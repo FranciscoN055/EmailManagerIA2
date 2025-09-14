@@ -83,6 +83,9 @@ class ProductionConfig(Config):
     DEBUG = False
     FLASK_ENV = 'production'
     
+    # Force PostgreSQL in production
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://email_manager_user:GQWBUD04ZlWyKuisF269nmIS98YtpVnz@dpg-d33fpd3uibrs73ajf8ug-a.oregon-postgres.render.com/email_manager'
+    
     # Override with production-specific settings
     CORS_ORIGINS = [
         'https://emailmanageriatesting.onrender.com',
