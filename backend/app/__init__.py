@@ -69,6 +69,23 @@ def create_app(config_name=None):
             'timestamp': datetime.now().isoformat()
         }
     
+    @app.route('/api/debug/env')
+    def debug_env():
+        """Debug endpoint to check environment variables."""
+        return {
+            'status': 'ok',
+            'environment': app.config.get('FLASK_ENV', 'unknown'),
+            'microsoft_config': {
+                'client_id': app.config.get('MICROSOFT_CLIENT_ID', 'Not set'),
+                'tenant_id': app.config.get('MICROSOFT_TENANT_ID', 'Not set'),
+                'redirect_uri': app.config.get('MICROSOFT_REDIRECT_URI', 'Not set'),
+                'authority': app.config.get('MICROSOFT_AUTHORITY', 'Not set'),
+                'scopes': app.config.get('MICROSOFT_SCOPE', [])
+            },
+            'database_url': app.config.get('SQLALCHEMY_DATABASE_URI', 'Not set')[:50] + '...' if app.config.get('SQLALCHEMY_DATABASE_URI') else 'Not set',
+            'timestamp': datetime.now().isoformat()
+        }
+    
     # Register blueprints
     from .routes import auth_bp, emails_bp, microsoft_bp
     
