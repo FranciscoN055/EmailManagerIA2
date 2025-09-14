@@ -283,6 +283,8 @@ def get_emails():
                     'email': email.sender_email
                 },
                 'preview': email.body_preview,
+                'body_content': email.body_content,  # Add full content
+                'body_preview': email.body_preview,  # Keep preview for compatibility
                 'received_at': email.received_at.isoformat(),
                 'is_read': email.is_read,
                 'has_attachments': email.has_attachments,
