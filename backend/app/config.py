@@ -18,6 +18,14 @@ class Config:
     
     # Database Configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///email_manager.db'
+    
+    # Fallback to SQLite if PostgreSQL fails
+    if SQLALCHEMY_DATABASE_URI.startswith('postgresql://'):
+        try:
+            import psycopg2
+        except ImportError:
+            print("Warning: psycopg2 not available, falling back to SQLite")
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///email_manager.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
