@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -81,6 +82,16 @@ def create_app(config_name=None):
             'version': '1.0.0',
             'database': db_status,
             'environment': app.config.get('FLASK_ENV', 'unknown')
+        }
+    
+    # Keep alive endpoint for free tier
+    @app.route('/api/ping')
+    def ping():
+        """Keep alive endpoint to prevent sleep on free tier."""
+        return {
+            'status': 'pong',
+            'message': 'Server is awake',
+            'timestamp': datetime.now().isoformat()
         }
     
     # Root endpoint

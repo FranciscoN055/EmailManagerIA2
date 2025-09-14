@@ -54,6 +54,18 @@ api.interceptors.response.use(
   }
 );
 
+// Keep alive function for free tier
+export const keepAlive = () => {
+  setInterval(async () => {
+    try {
+      await api.get('/ping');
+      console.log('Server pinged successfully');
+    } catch (error) {
+      console.log('Ping failed:', error.message);
+    }
+  }, 10 * 60 * 1000); // Ping every 10 minutes
+};
+
 // Funciones de la API
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
