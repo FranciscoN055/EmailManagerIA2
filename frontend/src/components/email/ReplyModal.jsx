@@ -197,6 +197,13 @@ const ReplyModalNew = ({
                   }
                 }
               }}>
+                {/* Debug info - remove this later */}
+                <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '8px', fontStyle: 'italic' }}>
+                  Debug: body_content={email.body_content ? 'exists' : 'null'}, 
+                  body_preview={email.body_preview ? 'exists' : 'null'}, 
+                  preview={email.preview ? 'exists' : 'null'}
+                </div>
+                
                 {email.body_content ? (
                   <div dangerouslySetInnerHTML={{ 
                     __html: email.body_content.replace(/\n/g, '<br/>') 
