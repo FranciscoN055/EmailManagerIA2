@@ -43,7 +43,7 @@ class Config:
         'https://graph.microsoft.com/Mail.Send',
         'offline_access'
     ]
-    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'http://localhost:5178/auth/callback'
+    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://email-manager-ia-testing.vercel.app/auth/callback'
     
     # OpenAI Configuration
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
@@ -66,7 +66,9 @@ class Config:
         'http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 
         'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 
         'http://localhost:5178', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174',
-        'http://127.0.0.1:5175', 'http://192.168.1.37:5173', 'http://192.168.1.37:5174'
+        'http://127.0.0.1:5175', 'http://192.168.1.37:5173', 'http://192.168.1.37:5174',
+        'https://email-manager-ia-testing.vercel.app',
+        'https://email-manager-ia-testing-mj1cw77jx.vercel.app'
     ]
 
 class DevelopmentConfig(Config):
