@@ -69,7 +69,7 @@ class Config:
         'http://127.0.0.1:5175', 'http://192.168.1.37:5173', 'http://192.168.1.37:5174',
         'https://email-manager-ia-testing.vercel.app',
         'https://email-manager-ia-testing-mj1cw77jx.vercel.app',
-        'https://email-manager-ia-testiong-7wyk0l360.vercel.app',
+        'https://email-manager-ia-testing-7wyk0l360.vercel.app',
         'https://email-manager-ia-testing-jksonan0r.vercel.app'
     ]
 
