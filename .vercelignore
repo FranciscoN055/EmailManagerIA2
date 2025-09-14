@@ -1,0 +1,9 @@
+# Ignorar todo excepto el frontend
+backend/
+*.md
+deploy.sh
+railway.json
+railway.toml
+Procfile
+.git/
+node_modules/
