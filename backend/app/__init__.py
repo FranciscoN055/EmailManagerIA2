@@ -35,6 +35,40 @@ def create_app(config_name=None):
     # Import models (this ensures they are registered with SQLAlchemy)
     from .models import User, EmailAccount, Email
     
+    # Health check endpoints (before blueprints)
+    @app.route('/api/health')
+    def health_check():
+        """Simple health check endpoint."""
+        return {
+            'status': 'healthy',
+            'message': 'Email Manager IA API is running',
+            'version': '1.0.0',
+            'environment': app.config.get('FLASK_ENV', 'unknown'),
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    @app.route('/api/ping')
+    def ping():
+        """Keep alive endpoint to prevent sleep on free tier."""
+        return {
+            'status': 'pong',
+            'message': 'Server is awake',
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    @app.route('/api/debug')
+    def debug():
+        """Debug endpoint to test CORS and connectivity."""
+        from flask import request
+        return {
+            'status': 'ok',
+            'message': 'Backend is responding',
+            'cors_origins': app.config.get('CORS_ORIGINS', []),
+            'request_origin': request.headers.get('Origin', 'No origin'),
+            'request_method': request.method,
+            'timestamp': datetime.now().isoformat()
+        }
+    
     # Register blueprints
     from .routes import auth_bp, emails_bp, microsoft_bp
     
@@ -65,10 +99,10 @@ def create_app(config_name=None):
     def missing_token_callback(error):
         return {'error': 'Authorization token is required'}, 401
     
-    # Health check endpoint
-    @app.route('/api/health')
-    def health_check():
-        """Simple health check endpoint."""
+    # Database health check endpoint
+    @app.route('/api/health/db')
+    def health_check_db():
+        """Health check endpoint with database test."""
         try:
             # Test database connection
             db.session.execute('SELECT 1')
@@ -81,16 +115,7 @@ def create_app(config_name=None):
             'message': 'Email Manager IA API is running',
             'version': '1.0.0',
             'database': db_status,
-            'environment': app.config.get('FLASK_ENV', 'unknown')
-        }
-    
-    # Keep alive endpoint for free tier
-    @app.route('/api/ping')
-    def ping():
-        """Keep alive endpoint to prevent sleep on free tier."""
-        return {
-            'status': 'pong',
-            'message': 'Server is awake',
+            'environment': app.config.get('FLASK_ENV', 'unknown'),
             'timestamp': datetime.now().isoformat()
         }
     
