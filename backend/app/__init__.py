@@ -136,6 +136,37 @@ def create_app(config_name=None):
             'timestamp': datetime.now().isoformat()
         }
     
+    # Database initialization endpoint
+    @app.route('/api/init-db')
+    def init_database_endpoint():
+        """Initialize database tables endpoint."""
+        try:
+            print("🚀 Initializing database from endpoint...")
+            
+            # Create all tables
+            db.create_all()
+            print("✅ Tables created successfully!")
+            
+            # Verify tables were created
+            inspector = db.inspect(db.engine)
+            tables = inspector.get_table_names()
+            print(f"📊 Tables created: {tables}")
+            
+            return {
+                'status': 'success',
+                'message': 'Database initialized successfully',
+                'tables': tables,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            print(f"❌ Error initializing database: {str(e)}")
+            return {
+                'status': 'error',
+                'message': f'Database initialization failed: {str(e)}',
+                'timestamp': datetime.now().isoformat()
+            }, 500
+    
     # Root endpoint
     @app.route('/')
     def root():
