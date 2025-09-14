@@ -42,8 +42,14 @@ def init_database_postgres():
                 print(f"❌ Database connection failed: {e}")
                 return False
             
-            # Create all tables
-            print("🔄 Creating database tables...")
+            # Create all tables using migrations
+            print("🔄 Running database migrations...")
+            from flask_migrate import upgrade
+            upgrade()
+            print("✅ Migrations completed successfully!")
+            
+            # Also create tables directly as backup
+            print("🔄 Creating database tables directly...")
             db.create_all()
             print("✅ Tables created successfully!")
             
