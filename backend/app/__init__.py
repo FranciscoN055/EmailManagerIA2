@@ -68,10 +68,19 @@ def create_app(config_name=None):
     @app.route('/api/health')
     def health_check():
         """Simple health check endpoint."""
+        try:
+            # Test database connection
+            db.session.execute('SELECT 1')
+            db_status = 'connected'
+        except Exception as e:
+            db_status = f'error: {str(e)}'
+        
         return {
             'status': 'healthy',
             'message': 'Email Manager IA API is running',
-            'version': '1.0.0'
+            'version': '1.0.0',
+            'database': db_status,
+            'environment': app.config.get('FLASK_ENV', 'unknown')
         }
     
     # Root endpoint
