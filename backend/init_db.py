@@ -27,15 +27,20 @@ def init_database():
             print("🚀 Initializing database...")
             print(f"📊 Database URI: {app.config.get('SQLALCHEMY_DATABASE_URI', 'Not set')[:50]}...")
             
-            # Check if database file exists
+            # Check database type
             db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
             if db_uri.startswith('sqlite:///'):
                 db_path = db_uri.replace('sqlite:///', '')
-                print(f"📁 Database file path: {db_path}")
+                print(f"📁 SQLite database file path: {db_path}")
                 if os.path.exists(db_path):
                     print("✅ Database file exists")
                 else:
                     print("⚠️ Database file does not exist, will be created")
+            elif db_uri.startswith('postgresql://'):
+                print("🐘 PostgreSQL database detected")
+                print(f"📊 Database URI: {db_uri[:50]}...")
+            else:
+                print(f"📊 Database URI: {db_uri[:50]}...")
             
             # Run all pending migrations
             print("🔄 Running migrations...")
