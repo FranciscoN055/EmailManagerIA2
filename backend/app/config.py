@@ -35,7 +35,7 @@ class Config:
         'https://graph.microsoft.com/Mail.Send',
         'offline_access'
     ]
-    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'http://localhost:5000/auth/microsoft/callback'
+    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'http://localhost:5178/auth/callback'
     
     # OpenAI Configuration
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
@@ -72,8 +72,12 @@ class ProductionConfig(Config):
     FLASK_ENV = 'production'
     
     # Override with production-specific settings
-    CORS_ORIGINS = ['https://yourdomain.com']
-    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://yourdomain.com/auth/microsoft/callback'
+    CORS_ORIGINS = [
+        'https://email-manager-ia-production.up.railway.app',
+        'https://email-manager-ia-frontend.vercel.app',
+        'https://email-manager-ia.vercel.app'
+    ]
+    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://email-manager-ia-production.up.railway.app/auth/callback'
 
 class TestingConfig(Config):
     """Testing configuration."""

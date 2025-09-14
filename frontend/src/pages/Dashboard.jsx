@@ -27,6 +27,7 @@ import {
   Refresh,
 } from '@mui/icons-material';
 import EmailColumn from '../components/email/EmailColumn';
+import ReplyModal from '../components/email/ReplyModal';
 import ThemeToggle from '../components/common/ThemeToggle';
 import PriorityProgressBar from '../components/common/PriorityProgressBar';
 import { generateMockEmails, getEmailsByUrgency, getEmailStats } from '../utils/mockData';
@@ -40,6 +41,9 @@ const Dashboard = () => {
   const [profileAnchor, setProfileAnchor] = useState(null);
   const [stats, setStats] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [selectedEmail, setSelectedEmail] = useState(null);
+  const [isSendingReply, setIsSendingReply] = useState(false);
 
   const columns = [
     { id: 'urgent', urgency: 'urgent', title: 'Urgente', subtitle: 'Próxima hora' },
@@ -135,6 +139,55 @@ const Dashboard = () => {
         email.id === emailId ? { ...email, isStarred: !email.isStarred } : email
       )
     );
+  };
+
+  const handleReply = (email) => {
+    setSelectedEmail(email);
+    setReplyModalOpen(true);
+  };
+
+  const handleSendReply = async (emailId, replyBody) => {
+    setIsSendingReply(true);
+    try {
+      const response = await emailAPI.replyToEmail(emailId, { body: replyBody });
+      
+      if (response.data.success) {
+        // Actualizar el email en la lista local
+        setEmails(prevEmails =>
+          prevEmails.map(email =>
+            email.id === emailId 
+              ? { 
+                  ...email, 
+                  isRead: true, 
+                  urgency: 'processed',
+                  processing_status: 'processed'
+                } 
+              : email
+          )
+        );
+        
+        // Actualizar estadísticas
+        setStats(prevStats => ({
+          ...prevStats,
+          unread: Math.max(0, (prevStats.unread || 0) - 1),
+          byUrgency: {
+            ...prevStats.byUrgency,
+            processed: (prevStats.byUrgency?.processed || 0) + 1,
+            [selectedEmail?.urgency]: Math.max(0, (prevStats.byUrgency?.[selectedEmail?.urgency] || 0) - 1)
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      throw new Error(error.response?.data?.error || 'Error al enviar la respuesta');
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
+
+  const handleCloseReplyModal = () => {
+    setReplyModalOpen(false);
+    setSelectedEmail(null);
   };
 
   const filteredEmails = emails.filter(email => {
@@ -427,6 +480,7 @@ const Dashboard = () => {
                 onMarkAsRead={handleMarkAsRead}
                 onArchive={handleArchive}
                 onToggleStar={handleToggleStar}
+                onReply={handleReply}
               />
             );
           })}
@@ -475,6 +529,15 @@ const Dashboard = () => {
           </MenuItemComponent>
         </MenuList>
       </Menu>
+
+      {/* Modal de respuesta */}
+      <ReplyModal
+        open={replyModalOpen}
+        onClose={handleCloseReplyModal}
+        email={selectedEmail}
+        onSendReply={handleSendReply}
+        isSending={isSendingReply}
+      />
       
     </Box>
   );

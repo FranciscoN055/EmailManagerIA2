@@ -16,6 +16,7 @@ import {
   Star,
   StarBorder,
   Circle,
+  Reply,
 } from '@mui/icons-material';
 
 const EmailCard = ({ 
@@ -23,6 +24,7 @@ const EmailCard = ({
   onMarkAsRead, 
   onArchive, 
   onToggleStar,
+  onReply,
   isDragging = false 
 }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -244,6 +246,18 @@ const EmailCard = ({
               transition: 'opacity 0.2s',
             }}
           >
+            <Tooltip title="Responder">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReply?.(email);
+                }}
+                sx={{ color: 'primary.main' }}
+              >
+                <Reply fontSize="small" />
+              </IconButton>
+            </Tooltip>
             {!email.isRead && (
               <Tooltip title="Marcar como leído">
                 <IconButton

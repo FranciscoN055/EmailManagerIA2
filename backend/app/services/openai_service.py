@@ -25,20 +25,35 @@ class OpenAIService:
         self.temperature = self.config.get('OPENAI_TEMPERATURE', 0.3)
         
         self.client = None
-        if self.api_key:
-            self.client = OpenAI(api_key=self.api_key)
+        if self.api_key and self.api_key != 'your-openai-api-key-here':
+            try:
+                self.client = OpenAI(api_key=self.api_key)
+            except Exception as e:
+                logger.warning(f"Failed to initialize OpenAI client: {e}")
+                self.client = None
         
-        # Academic context patterns
+        # Academic context patterns - REAL urgent situations
         self.urgent_keywords = [
-            'urgente', 'emergencia', 'inmediato', 'hoy mismo', 'crítico',
-            'crisis', 'problema grave', 'accidente', 'suspensión', 'expulsión',
-            'ayuda', 'socorro', 'grave', 'hospital', 'ambulancia', 'lesion',
-            'lesionado', 'herido', 'caída', 'golpe', 'sangre', 'desmayo'
+            'emergencia', 'accidente', 'hospital', 'ambulancia', 'lesion',
+            'lesionado', 'herido', 'caída', 'golpe', 'sangre', 'desmayo',
+            'crisis', 'problema grave', 'suspensión', 'expulsión', 'ayuda',
+            'socorro', 'grave', 'inmediato', 'hoy mismo', 'crítico'
+        ]
+        
+        # Non-urgent keywords that might be confused with urgent
+        self.non_urgent_indicators = [
+            'qué día', 'que dia', 'cuando', 'cuándo', 'horario', 'hora',
+            'información', 'consulta', 'pregunta', 'duda', 'ayuda con',
+            'necesito saber', 'podrías decirme', 'me puedes ayudar',
+            'solo quería', 'solo queria', 'nada urgente', 'no es urgente',
+            'cuando puedas', 'cuando tengas tiempo', 'no hay prisa'
         ]
         
         self.high_priority_keywords = [
             'reunión', 'junta', 'consejo', 'deadline', 'plazo', 'entrega',
-            'examen', 'evaluación', 'presentación', 'defensa', 'tesis'
+            'examen', 'evaluación', 'presentación', 'defensa', 'tesis',
+            'calificación', 'nota', 'reprobado', 'aprobado', 'suspensión',
+            'expulsión', 'disciplinario', 'problema', 'conflicto', 'queja'
         ]
         
         self.academic_roles = {
@@ -172,15 +187,25 @@ Responde SOLO en formato JSON válido:
         text_content = f"{subject} {body}"
         
         # Rule-based classification - start with different defaults to avoid medium bias
-        urgency = 'low'  # Changed from 'medium' to 'low' as default
+        urgency = 'low'  # Start with low as default
         confidence = 0.6
         reasoning = "Clasificación basada en reglas (OpenAI no disponible)"
         
-        # Check for urgent keywords first
-        if any(keyword in text_content for keyword in self.urgent_keywords):
+        # Check for non-urgent indicators first (to avoid false positives)
+        has_non_urgent_indicators = any(keyword in text_content for keyword in self.non_urgent_indicators)
+        has_urgent_keywords = any(keyword in text_content for keyword in self.urgent_keywords)
+        
+        # If it has non-urgent indicators, it's likely not urgent even if it says "urgente"
+        if has_non_urgent_indicators and not has_urgent_keywords:
+            urgency = 'low'
+            confidence = 0.8
+            reasoning = "Contenido indica consulta no urgente (a pesar de palabras como 'urgente')"
+        
+        # Check for REAL urgent keywords (only if no non-urgent indicators)
+        elif has_urgent_keywords and not has_non_urgent_indicators:
             urgency = 'urgent'
             confidence = 0.9
-            reasoning = "Detectadas palabras clave de urgencia crítica"
+            reasoning = "Detectadas palabras clave de urgencia crítica real"
         
         # Check for high priority keywords
         elif any(keyword in text_content for keyword in self.high_priority_keywords):
@@ -188,11 +213,28 @@ Responde SOLO en formato JSON válido:
             confidence = 0.8
             reasoning = "Detectadas palabras clave de alta prioridad académica"
         
-        # Student emails get medium priority (not high by default)
-        elif '@uss.cl' in sender_email or any(keyword in text_content for keyword in ['estudiante', 'alumno', 'alumna']):
+        # Check for medium priority indicators
+        elif any(keyword in text_content for keyword in ['consulta', 'pregunta', 'ayuda', 'información', 'horario', 'clase', 'materia', 'asignatura']):
             urgency = 'medium'
             confidence = 0.7
-            reasoning = "Correo de estudiante USS - requiere atención académica"
+            reasoning = "Consulta académica que requiere respuesta"
+        
+        # Student emails from USS get medium priority only if they contain academic content
+        elif '@uss.cl' in sender_email:
+            if any(keyword in text_content for keyword in ['consulta', 'pregunta', 'ayuda', 'información', 'horario', 'clase', 'materia', 'asignatura', 'profesor', 'docente']):
+                urgency = 'medium'
+                confidence = 0.7
+                reasoning = "Correo de estudiante USS con contenido académico"
+            else:
+                urgency = 'low'
+                confidence = 0.6
+                reasoning = "Correo de estudiante USS - contenido general"
+        
+        # External emails are generally low priority unless urgent keywords
+        else:
+            urgency = 'low'
+            confidence = 0.5
+            reasoning = "Correo externo - prioridad baja"
         
         # Determine sender type
         sender_type = 'externo'

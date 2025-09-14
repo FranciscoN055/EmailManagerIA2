@@ -368,6 +368,9 @@ def debug_token():
         # Test 3: Emails (most restrictive)
         emails_response = requests.get('https://graph.microsoft.com/v1.0/me/messages?$top=1', headers=headers, timeout=10)
         
+        # Test 4: Send mail permissions (try to get send mail endpoint info)
+        send_mail_response = requests.get('https://graph.microsoft.com/v1.0/me/sendMail', headers=headers, timeout=10)
+        
         return jsonify({
             'success': True,
             'token_exists': bool(email_account.access_token),
@@ -375,7 +378,8 @@ def debug_token():
             'tests': {
                 'profile': {'status': profile_response.status_code, 'ok': profile_response.status_code == 200},
                 'folders': {'status': folders_response.status_code, 'ok': folders_response.status_code == 200, 'text': folders_response.text[:200] if folders_response.status_code != 200 else 'OK'},
-                'emails': {'status': emails_response.status_code, 'ok': emails_response.status_code == 200, 'text': emails_response.text[:200] if emails_response.status_code != 200 else 'OK'}
+                'emails': {'status': emails_response.status_code, 'ok': emails_response.status_code == 200, 'text': emails_response.text[:200] if emails_response.status_code != 200 else 'OK'},
+                'send_mail': {'status': send_mail_response.status_code, 'ok': send_mail_response.status_code in [200, 405], 'text': send_mail_response.text[:200] if send_mail_response.status_code not in [200, 405] else 'OK'}
             }
         })
     
@@ -384,6 +388,52 @@ def debug_token():
         return jsonify({
             'success': False,
             'error': 'Failed to debug token'
+        }), 500
+
+@microsoft_bp.route('/test-send-email')
+@jwt_required()
+def test_send_email():
+    """Test sending a simple email to verify permissions."""
+    try:
+        user_id = get_jwt_identity()
+        
+        email_account = EmailAccount.query.filter_by(
+            user_id=user_id,
+            provider='microsoft',
+            is_active=True
+        ).first()
+        
+        if not email_account:
+            return jsonify({
+                'success': False,
+                'error': 'Microsoft account not connected'
+            }), 400
+        
+        service = MicrosoftGraphService()
+        
+        # Test sending a simple email to yourself
+        test_email = email_account.email_address
+        test_subject = "Test Email from Email Manager IA"
+        test_body = "<p>This is a test email to verify send permissions.</p>"
+        
+        success = service.send_email(
+            access_token=email_account.access_token,
+            to_email=test_email,
+            subject=test_subject,
+            body=test_body
+        )
+        
+        return jsonify({
+            'success': success,
+            'message': 'Test email sent successfully' if success else 'Failed to send test email',
+            'test_email': test_email
+        })
+    
+    except Exception as e:
+        logger.error(f"Error testing send email: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to test send email'
         }), 500
 
 @microsoft_bp.route('/folders')

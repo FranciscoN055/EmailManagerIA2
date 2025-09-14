@@ -68,6 +68,8 @@ export const emailAPI = {
   getEmailsByUrgency: (urgency) => api.get(`/emails/urgency/${urgency}`),
   markAsRead: (emailId) => api.patch(`/emails/${emailId}/read`),
   syncEmails: (data) => api.post('/emails/sync', data),
+  sendEmail: (data) => api.post('/emails/send', data),
+  replyToEmail: (emailId, data) => api.post(`/emails/${emailId}/reply`, data),
 };
 
 export const microsoftAPI = {

@@ -588,6 +588,9 @@ def send_email():
         
         service = MicrosoftGraphService()
         
+        logger.info(f"Attempting to send email to {data['to_email']}")
+        logger.info(f"Email subject: {data['subject']}")
+        
         # Send email via Microsoft Graph
         success = service.send_email(
             access_token=email_account.access_token,
@@ -595,6 +598,8 @@ def send_email():
             subject=data['subject'],
             body=data['body']
         )
+        
+        logger.info(f"Send email result: {success}")
         
         if success:
             return jsonify({
@@ -665,6 +670,10 @@ def reply_to_email(email_id):
             reply_subject = f"RE: {reply_subject}"
         
         # Send reply via Microsoft Graph
+        logger.info(f"Attempting to send reply to {email.sender_email}")
+        logger.info(f"Reply subject: {reply_subject}")
+        logger.info(f"Original email ID: {email.microsoft_email_id}")
+        
         success = service.send_email(
             access_token=email_account.access_token,
             to_email=email.sender_email,
@@ -672,6 +681,8 @@ def reply_to_email(email_id):
             body=data['body'],
             reply_to_message_id=email.microsoft_email_id
         )
+        
+        logger.info(f"Send email result: {success}")
         
         if success:
             # Mark original email as read and processed
@@ -703,6 +714,57 @@ def reply_to_email(email_id):
         return jsonify({
             'success': False,
             'error': 'Failed to send reply'
+        }), 500
+
+@emails_bp.route('/test-send', methods=['POST'])
+@jwt_required()
+def test_send_email():
+    """Test endpoint to send a simple email for debugging."""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Get email account
+        email_account = EmailAccount.query.filter_by(
+            user_id=user_id,
+            provider='microsoft',
+            is_active=True
+        ).first()
+        
+        if not email_account:
+            return jsonify({
+                'success': False,
+                'error': 'Microsoft account not connected'
+            }), 400
+        
+        service = MicrosoftGraphService()
+        
+        # Send test email to yourself
+        test_email = email_account.email_address
+        test_subject = "Test Email from Email Manager IA - Debug"
+        test_body = "<p>This is a test email to verify send functionality.</p><p>If you receive this, the send functionality is working correctly.</p>"
+        
+        logger.info(f"Testing email send to {test_email}")
+        
+        success = service.send_email(
+            access_token=email_account.access_token,
+            to_email=test_email,
+            subject=test_subject,
+            body=test_body
+        )
+        
+        logger.info(f"Test email send result: {success}")
+        
+        return jsonify({
+            'success': success,
+            'message': 'Test email sent successfully' if success else 'Failed to send test email',
+            'test_email': test_email
+        })
+    
+    except Exception as e:
+        logger.error(f"Error testing email send: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to test email send'
         }), 500
 
 @emails_bp.route('/search', methods=['GET'])
@@ -885,6 +947,29 @@ def classify_emails():
         return jsonify({
             'success': False,
             'error': 'Email classification failed'
+        }), 500
+
+@emails_bp.route('/ai-status', methods=['GET'])
+@jwt_required()
+def get_ai_status():
+    """Get AI service status and configuration."""
+    try:
+        from app.services.openai_service import OpenAIService
+        
+        openai_service = OpenAIService()
+        status = openai_service.get_status()
+        
+        return jsonify({
+            'success': True,
+            'ai_service': status,
+            'message': 'AI service status retrieved successfully'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting AI status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get AI service status'
         }), 500
 
 @emails_bp.route('/<email_id>/classify', methods=['POST'])

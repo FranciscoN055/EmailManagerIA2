@@ -14,6 +14,7 @@ const EmailColumn = ({
   onMarkAsRead, 
   onArchive, 
   onToggleStar,
+  onReply,
 }) => {
   const getColumnColor = (urgency) => {
     switch (urgency) {
@@ -169,6 +170,7 @@ const EmailColumn = ({
               onMarkAsRead={onMarkAsRead}
               onArchive={onArchive}
               onToggleStar={onToggleStar}
+              onReply={onReply}
             />
           ))
         )}
