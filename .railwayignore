@@ -1,8 +1,0 @@
-# Ignorar todo excepto el backend
-frontend/
-*.md
-deploy.sh
-.vercelignore
-.git/
-node_modules/
-.claude/
