@@ -70,7 +70,8 @@ class Config:
         'https://email-manager-ia-testing.vercel.app',
         'https://email-manager-ia-testing-mj1cw77jx.vercel.app',
         'https://email-manager-ia-testing-7wyk0l360.vercel.app',
-        'https://email-manager-ia-testing-jksonan0r.vercel.app'
+        'https://email-manager-ia-testing-jksonan0r.vercel.app',
+        'https://email-manager-7z56xba0p-vhernandezls-projects.vercel.app'
     ]
 
 class DevelopmentConfig(Config):
@@ -93,6 +94,7 @@ class ProductionConfig(Config):
         'https://email-manager-ia-testing-mj1cw77jx.vercel.app',
         'https://email-manager-ia-testing-7wyk0l360.vercel.app',
         'https://email-manager-ia-testing-jksonan0r.vercel.app',
+        'https://email-manager-7z56xba0p-vhernandezls-projects.vercel.app',
         'http://localhost:3000',
         'http://localhost:5173'
     ]
