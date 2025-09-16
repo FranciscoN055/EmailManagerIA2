@@ -90,7 +90,12 @@ const EmailCard = ({
   };
 
   const getConfidenceColor = (confidence) => {
-    return '#0078d4'; // Always blue for consistency
+    if (confidence === undefined || confidence === null) {
+      return '#6c757d'; // Gray for undefined
+    }
+    if (confidence >= 0.8) return '#198754'; // Green for high confidence
+    if (confidence >= 0.6) return '#fd7e14'; // Orange for medium confidence
+    return '#dc3545'; // Red for low confidence
   };
 
   return (
@@ -223,12 +228,12 @@ const EmailCard = ({
               }}
             />
             <Chip
-              label={`IA ${email.aiConfidence}%`}
+              label={`IA ${email.ai_confidence !== undefined ? Math.round(email.ai_confidence * 100) : 0}%`}
               size="small"
               variant="outlined"
               sx={{
-                borderColor: getConfidenceColor(email.aiConfidence),
-                color: getConfidenceColor(email.aiConfidence),
+                borderColor: getConfidenceColor(email.ai_confidence),
+                color: getConfidenceColor(email.ai_confidence),
                 fontSize: '0.625rem',
                 height: 18,
                 '& .MuiChip-label': {

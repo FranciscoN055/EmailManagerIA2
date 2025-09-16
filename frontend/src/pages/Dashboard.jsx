@@ -145,7 +145,7 @@ const Dashboard = () => {
           isRead: email.is_read,
           receivedAt: email.received_at,
           hasAttachments: email.has_attachments,
-          confidence: email.confidence_score || 0,
+          ai_confidence: email.ai_confidence || 0,
           aiReason: email.ai_classification_reason || ''
         }));
         setEmails(apiEmails);

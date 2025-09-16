@@ -290,7 +290,7 @@ def get_emails():
                 'has_attachments': email.has_attachments,
                 'urgency_category': email.urgency_category,
                 'priority_level': email.priority_level,
-                'confidence_score': email.ai_confidence,
+                'ai_confidence': email.ai_confidence,
                 'processing_status': email.processing_status,
                 'ai_classification_reason': email.ai_reasoning
             })
@@ -355,7 +355,7 @@ def get_email_detail(email_id):
                 'is_important': email.is_important,
                 'urgency_category': email.urgency_category,
                 'priority_level': email.priority_level,
-                'confidence_score': email.ai_confidence,
+                'ai_confidence': email.ai_confidence,
                 'processing_status': email.processing_status,
                 'ai_classification_reason': email.ai_reasoning,
                 'created_at': email.created_at.isoformat(),
@@ -1031,7 +1031,7 @@ def classify_single_email(email_id):
                 'id': str(email.id),
                 'urgency_category': email.urgency_category,
                 'priority_level': email.priority_level,
-                'confidence_score': email.ai_confidence,
+                'ai_confidence': email.ai_confidence,
                 'reasoning': email.ai_reasoning
             },
             'classification': classification,
@@ -1081,7 +1081,7 @@ def get_classification_stats():
         for email in emails:
             classifications.append({
                 'urgency_category': email.urgency_category,
-                'confidence_score': email.ai_confidence,
+                'ai_confidence': email.ai_confidence,
                 'sender_type': 'externo',  # Would need to store this in DB
                 'email_type': 'academico',  # Would need to store this in DB
                 'requires_immediate_action': email.urgency_category in ['urgent', 'high']
