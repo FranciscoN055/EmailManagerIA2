@@ -58,15 +58,44 @@ const EmailCard = ({
   };
 
   const getTimeAgo = (timestamp) => {
-    const now = new Date();
-    const emailDate = new Date(timestamp);
-    const diffInHours = Math.floor((now - emailDate) / (1000 * 60 * 60));
+    if (!timestamp) return 'Fecha desconocida';
     
-    if (diffInHours < 1) return 'Hace menos de 1h';
-    if (diffInHours < 24) return `Hace ${diffInHours}h`;
-    if (diffInHours < 48) return 'Ayer';
-    const days = Math.floor(diffInHours / 24);
-    return `Hace ${days} días`;
+    try {
+      const now = new Date();
+      const emailDate = new Date(timestamp);
+      
+      // Verificar que la fecha es válida
+      if (isNaN(emailDate.getTime())) {
+        console.warn('Invalid timestamp:', timestamp);
+        return 'Fecha inválida';
+      }
+      
+      const diffInMs = now - emailDate;
+      const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+      const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+      const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+      
+      if (diffInMinutes < 1) return 'Ahora mismo';
+      if (diffInMinutes < 60) return `Hace ${diffInMinutes}min`;
+      if (diffInHours < 1) return 'Hace menos de 1h';
+      if (diffInHours < 24) return `Hace ${diffInHours}h`;
+      if (diffInDays === 1) return 'Ayer';
+      if (diffInDays < 7) return `Hace ${diffInDays} días`;
+      if (diffInDays < 30) {
+        const weeks = Math.floor(diffInDays / 7);
+        return weeks === 1 ? 'Hace 1 semana' : `Hace ${weeks} semanas`;
+      }
+      if (diffInDays < 365) {
+        const months = Math.floor(diffInDays / 30);
+        return months === 1 ? 'Hace 1 mes' : `Hace ${months} meses`;
+      }
+      const years = Math.floor(diffInDays / 365);
+      return years === 1 ? 'Hace 1 año' : `Hace ${years} años`;
+      
+    } catch (error) {
+      console.error('Error calculating time ago:', error, 'for timestamp:', timestamp);
+      return 'Error de fecha';
+    }
   };
 
   const getPriorityColor = (urgency) => {
@@ -157,7 +186,7 @@ const EmailCard = ({
               color="text.secondary"
               sx={{ fontSize: '0.7rem' }}
             >
-              {getTimeAgo(email.received_at || email.timestamp)}
+              {getTimeAgo(email.received_at || email.receivedAt || email.timestamp || email.date || email.receivedDateTime)}
             </Typography>
           </Box>
 
