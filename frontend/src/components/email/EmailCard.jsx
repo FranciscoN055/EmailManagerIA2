@@ -127,6 +127,16 @@ const EmailCard = ({
     return '#dc3545'; // Red for low confidence
   };
 
+  const handleCardClick = (e) => {
+    // Evitar que se active si se hizo click en un botón o elemento interactivo
+    if (e.target.closest('button') || e.target.closest('[role="button"]')) {
+      return;
+    }
+    
+    // Abrir la ventana de respuesta como si hubieran clickeado "Responder"
+    onReply?.(email);
+  };
+
   return (
     <Card
       sx={{
@@ -140,9 +150,17 @@ const EmailCard = ({
         borderLeftWidth: '3px',
         borderLeftColor: getPriorityColor(email.urgency),
         minHeight: 120,
+        '&:hover': {
+          boxShadow: 2,
+          backgroundColor: 'action.hover',
+        },
+        '&:active': {
+          transform: 'translateY(0px)',
+        }
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={handleCardClick}
     >
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
         {/* Header con avatar y acciones */}

@@ -25,7 +25,6 @@ import {
   Notifications,
   AccountCircle,
   Refresh,
-  Sync,
 } from '@mui/icons-material';
 import EmailColumn from '../components/email/EmailColumn';
 import ReplyModal from '../components/email/ReplyModal';
@@ -73,12 +72,10 @@ const Dashboard = () => {
   useEffect(() => {
     loadEmails();
     
-    // Set up polling for email status synchronization every 2 minutes
-    const statusSyncInterval = setInterval(async () => {
+    // Set up polling for full synchronization every 2 minutes
+    const syncInterval = setInterval(async () => {
       try {
-        console.log('Auto-syncing email statuses...');
-        await emailAPI.syncEmailStatuses({ limit: 50 });
-        // Reload emails to get updated statuses
+        console.log('Auto-syncing emails and statuses...');
         await loadEmails();
         console.log('Auto-sync completed');
       } catch (error) {
@@ -86,7 +83,7 @@ const Dashboard = () => {
       }
     }, 2 * 60 * 1000); // Every 2 minutes
 
-    return () => clearInterval(statusSyncInterval);
+    return () => clearInterval(syncInterval);
   }, []);
 
   useEffect(() => {
@@ -144,7 +141,12 @@ const Dashboard = () => {
       // First, sync emails from Microsoft Graph
       console.log('Syncing emails from Microsoft Graph...');
       const syncResponse = await emailAPI.syncEmails({ count: 50, classify: true });
-      console.log('Sync completed:', syncResponse.data);
+      console.log('Email sync completed:', syncResponse.data);
+      
+      // Also sync email read/unread statuses
+      console.log('Syncing email statuses...');
+      const statusResponse = await emailAPI.syncEmailStatuses({ limit: 100 });
+      console.log('Status sync completed:', statusResponse.data);
       
       // Then, get all emails
       console.log('Fetching emails...');
@@ -282,23 +284,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleSyncStatuses = async () => {
-    try {
-      setIsLoading(true);
-      console.log('Manual sync initiated...');
-      const response = await emailAPI.syncEmailStatuses({ limit: 100 });
-      
-      if (response.data.success) {
-        console.log(`Synced ${response.data.updated_count} email statuses`);
-        // Reload emails to reflect changes
-        await loadEmails();
-      }
-    } catch (error) {
-      console.error('Manual sync failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleCloseReplyModal = () => {
     setReplyModalOpen(false);
@@ -405,24 +390,9 @@ const Dashboard = () => {
               color="inherit" 
               onClick={loadEmails} 
               disabled={isLoading}
-              title="Sincronizar correos"
+              title="Sincronizar correos y estados de lectura"
             >
               <Refresh sx={{ 
-                animation: isLoading ? 'spin 1s linear infinite' : 'none',
-                '@keyframes spin': {
-                  '0%': { transform: 'rotate(0deg)' },
-                  '100%': { transform: 'rotate(360deg)' }
-                }
-              }} />
-            </IconButton>
-            
-            <IconButton 
-              color="inherit" 
-              onClick={handleSyncStatuses} 
-              disabled={isLoading}
-              title="Sincronizar estados de lectura"
-            >
-              <Sync sx={{ 
                 animation: isLoading ? 'spin 1s linear infinite' : 'none',
                 '@keyframes spin': {
                   '0%': { transform: 'rotate(0deg)' },
