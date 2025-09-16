@@ -78,8 +78,9 @@ export const emailAPI = {
   connectAccount: (data) => api.post('/emails/connect', data),
   getEmails: (params) => api.get('/emails/', { params }),
   getEmailsByUrgency: (urgency) => api.get(`/emails/urgency/${urgency}`),
-  markAsRead: (emailId) => api.patch(`/emails/${emailId}/read`),
+  markEmailAsRead: (emailId) => api.post(`/emails/${emailId}/mark-read`),
   syncEmails: (data) => api.post('/emails/sync', data),
+  syncEmailStatuses: (data) => api.post('/emails/sync-status', data),
   sendEmail: (data) => api.post('/emails/send', data),
   replyToEmail: (emailId, data) => api.post(`/emails/${emailId}/reply`, data),
 };

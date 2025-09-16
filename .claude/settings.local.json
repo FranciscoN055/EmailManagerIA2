@@ -14,7 +14,10 @@
       "Bash(npx vite:*)",
       "Bash(del \"C:\\Users\\valel\\email-manager-ia\\login_direct.html\")",
       "Bash(powershell:*)",
-      "Bash(ipconfig /flushdns)"
+      "Bash(ipconfig /flushdns)",
+      "Bash(dir:*)",
+      "Bash(./venv/Scripts/activate)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

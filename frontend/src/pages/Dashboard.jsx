@@ -25,6 +25,7 @@ import {
   Notifications,
   AccountCircle,
   Refresh,
+  Sync,
 } from '@mui/icons-material';
 import EmailColumn from '../components/email/EmailColumn';
 import ReplyModal from '../components/email/ReplyModal';
@@ -71,6 +72,21 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadEmails();
+    
+    // Set up polling for email status synchronization every 2 minutes
+    const statusSyncInterval = setInterval(async () => {
+      try {
+        console.log('Auto-syncing email statuses...');
+        await emailAPI.syncEmailStatuses({ limit: 50 });
+        // Reload emails to get updated statuses
+        await loadEmails();
+        console.log('Auto-sync completed');
+      } catch (error) {
+        console.error('Auto-sync failed:', error);
+      }
+    }, 2 * 60 * 1000); // Every 2 minutes
+
+    return () => clearInterval(statusSyncInterval);
   }, []);
 
   useEffect(() => {
@@ -169,12 +185,41 @@ const Dashboard = () => {
     }
   };
 
-  const handleMarkAsRead = (emailId) => {
-    setEmails(prevEmails =>
-      prevEmails.map(email =>
-        email.id === emailId ? { ...email, isRead: true } : email
-      )
-    );
+  const handleMarkAsRead = async (emailId) => {
+    try {
+      // Optimistic update - update UI immediately
+      setEmails(prevEmails =>
+        prevEmails.map(email =>
+          email.id === emailId ? { ...email, isRead: true } : email
+        )
+      );
+
+      // Call backend to mark as read in both database and Microsoft
+      const response = await emailAPI.markEmailAsRead(emailId);
+      
+      if (!response.data.success) {
+        // Revert optimistic update on failure
+        setEmails(prevEmails =>
+          prevEmails.map(email =>
+            email.id === emailId ? { ...email, isRead: false } : email
+          )
+        );
+        console.error('Failed to mark email as read:', response.data.error);
+      } else {
+        console.log('Email marked as read:', {
+          microsoft_updated: response.data.microsoft_updated,
+          local_updated: response.data.local_updated
+        });
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setEmails(prevEmails =>
+        prevEmails.map(email =>
+          email.id === emailId ? { ...email, isRead: false } : email
+        )
+      );
+      console.error('Error marking email as read:', error);
+    }
   };
 
   const handleArchive = (emailId) => {
@@ -234,6 +279,24 @@ const Dashboard = () => {
       throw new Error(error.response?.data?.error || 'Error al enviar la respuesta');
     } finally {
       setIsSendingReply(false);
+    }
+  };
+
+  const handleSyncStatuses = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Manual sync initiated...');
+      const response = await emailAPI.syncEmailStatuses({ limit: 100 });
+      
+      if (response.data.success) {
+        console.log(`Synced ${response.data.updated_count} email statuses`);
+        // Reload emails to reflect changes
+        await loadEmails();
+      }
+    } catch (error) {
+      console.error('Manual sync failed:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -338,8 +401,28 @@ const Dashboard = () => {
 
           {/* Acciones del header */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton color="inherit" onClick={loadEmails} disabled={isLoading}>
+            <IconButton 
+              color="inherit" 
+              onClick={loadEmails} 
+              disabled={isLoading}
+              title="Sincronizar correos"
+            >
               <Refresh sx={{ 
+                animation: isLoading ? 'spin 1s linear infinite' : 'none',
+                '@keyframes spin': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' }
+                }
+              }} />
+            </IconButton>
+            
+            <IconButton 
+              color="inherit" 
+              onClick={handleSyncStatuses} 
+              disabled={isLoading}
+              title="Sincronizar estados de lectura"
+            >
+              <Sync sx={{ 
                 animation: isLoading ? 'spin 1s linear infinite' : 'none',
                 '@keyframes spin': {
                   '0%': { transform: 'rotate(0deg)' },

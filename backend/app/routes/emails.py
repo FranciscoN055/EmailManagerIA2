@@ -97,6 +97,34 @@ def sync_emails():
                 ).first()
                 
                 if existing_email:
+                    # Update existing email's read status and other properties
+                    updated = False
+                    
+                    # Check if isRead status changed
+                    current_is_read = email_data.get('isRead', False)
+                    if existing_email.is_read != current_is_read:
+                        existing_email.is_read = current_is_read
+                        updated = True
+                        logger.info(f"Updated isRead status for email {existing_email.id}: {current_is_read}")
+                    
+                    # Check if importance changed
+                    current_importance = email_data.get('importance', 'normal') == 'high'
+                    if existing_email.is_important != current_importance:
+                        existing_email.is_important = current_importance
+                        updated = True
+                    
+                    # Check if flag status changed (starred)
+                    flag_status = email_data.get('flag', {})
+                    current_starred = flag_status.get('flagStatus', 'notFlagged') != 'notFlagged'
+                    if existing_email.is_starred != current_starred:
+                        existing_email.is_starred = current_starred
+                        updated = True
+                    
+                    if updated:
+                        existing_email.updated_at = datetime.now()
+                        db.session.add(existing_email)
+                        logger.info(f"Updated existing email {existing_email.id}")
+                    
                     skipped_count += 1
                     continue
                 
@@ -398,12 +426,19 @@ def mark_email_read(email_id):
             is_active=True
         ).first()
         
-        if email_account and email.microsoft_email_id:
-            service = MicrosoftGraphService()
-            service.mark_email_as_read(
-                email_account.access_token,
-                email.microsoft_email_id
-            )
+        # Mark as read in Microsoft Graph first
+        microsoft_success = False
+        if email_account and email.microsoft_email_id and email_account.access_token:
+            try:
+                service = MicrosoftGraphService()
+                microsoft_success = service.mark_email_as_read(
+                    email_account.access_token,
+                    email.microsoft_email_id
+                )
+                logger.info(f"Microsoft Graph mark as read result: {microsoft_success}")
+            except Exception as e:
+                logger.warning(f"Failed to mark email as read in Microsoft: {str(e)}")
+                # Continue with local update even if Microsoft fails
         
         # Update local record
         email.is_read = True
@@ -411,7 +446,9 @@ def mark_email_read(email_id):
         
         return jsonify({
             'success': True,
-            'message': 'Email marked as read'
+            'message': 'Email marked as read',
+            'microsoft_updated': microsoft_success,
+            'local_updated': True
         })
     
     except Exception as e:
@@ -419,6 +456,82 @@ def mark_email_read(email_id):
         return jsonify({
             'success': False,
             'error': 'Failed to mark email as read'
+        }), 500
+
+@emails_bp.route('/sync-status', methods=['POST'])
+@jwt_required()
+def sync_email_statuses():
+    """Sync read/unread status of all emails with Microsoft Graph."""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Get user's email accounts
+        email_account = EmailAccount.query.filter_by(
+            user_id=user_id,
+            provider='microsoft',
+            is_active=True
+        ).first()
+        
+        if not email_account or not email_account.access_token:
+            return jsonify({
+                'success': False,
+                'error': 'Microsoft account not connected'
+            }), 400
+        
+        # Get parameters
+        data = request.get_json() or {}
+        limit = min(data.get('limit', 100), 200)  # Max 200 emails
+        
+        service = MicrosoftGraphService()
+        
+        # Fetch recent emails from Microsoft to sync status
+        emails_data = service.get_user_emails(
+            email_account.access_token,
+            top=limit,
+            folder='inbox'
+        )
+        
+        if not emails_data or 'value' not in emails_data:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch emails from Microsoft'
+            }), 400
+        
+        updated_count = 0
+        processed_count = 0
+        
+        for email_data in emails_data['value']:
+            processed_count += 1
+            microsoft_id = email_data['id']
+            current_is_read = email_data.get('isRead', False)
+            
+            # Find local email
+            local_email = Email.query.filter_by(
+                microsoft_email_id=microsoft_id,
+                email_account_id=email_account.id
+            ).first()
+            
+            if local_email and local_email.is_read != current_is_read:
+                local_email.is_read = current_is_read
+                local_email.updated_at = datetime.now()
+                db.session.add(local_email)
+                updated_count += 1
+                logger.info(f"Synced read status for email {local_email.id}: {current_is_read}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Synchronized {updated_count} email statuses',
+            'updated_count': updated_count,
+            'processed_count': processed_count
+        })
+    
+    except Exception as e:
+        logger.error(f"Error syncing email statuses: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to sync email statuses'
         }), 500
 
 @emails_bp.route('/<email_id>/update-urgency', methods=['POST'])
