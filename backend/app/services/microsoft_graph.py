@@ -342,3 +342,26 @@ class MicrosoftGraphService:
         except Exception as e:
             logger.error(f"Error searching emails: {str(e)}")
             return None
+    
+    def get_user_photo(self, access_token):
+        """
+        Obtiene la foto de perfil del usuario autenticado en Microsoft.
+        Devuelve los bytes de la imagen o None si no hay foto.
+        """
+        url = "https://graph.microsoft.com/v1.0/me/photo/$value"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.content  # Imagen en bytes
+        return None
+    
+    def get_user_profile(self, access_token):
+        """
+        Obtiene el perfil del usuario autenticado en Microsoft.
+        """
+        url = "https://graph.microsoft.com/v1.0/me"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        return None

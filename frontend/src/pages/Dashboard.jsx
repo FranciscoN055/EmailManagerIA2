@@ -33,6 +33,19 @@ import PriorityProgressBar from '../components/common/PriorityProgressBar';
 import { generateMockEmails, getEmailsByUrgency, getEmailStats } from '../utils/mockData';
 import { emailAPI } from '../services/api';
 
+function getInitials(name, email) {
+  if (name) {
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  if (email) {
+    const user = email.split('@')[0];
+    return user.slice(0, 2).toUpperCase();
+  }
+  return '';
+}
+
 const Dashboard = () => {
   const [emails, setEmails] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +57,9 @@ const Dashboard = () => {
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState(null);
   const [isSendingReply, setIsSendingReply] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   const columns = [
     { id: 'urgent', urgency: 'urgent', title: 'Urgente', subtitle: 'Próxima hora' },
@@ -55,6 +71,42 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadEmails();
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    fetch('http://localhost:5000/api/microsoft/profile', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setUserName(data.name);
+          setUserEmail(data.email);
+
+          // Si hay foto, la pedimos
+          if (data.has_photo) {
+            fetch('http://localhost:5000/api/microsoft/profile/photo', {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+              .then(response => {
+                if (response.ok) return response.blob();
+                throw new Error('No photo');
+              })
+              .then(blob => {
+                const objectUrl = URL.createObjectURL(blob);
+                setProfilePhotoUrl(objectUrl);
+              })
+              .catch(() => setProfilePhotoUrl(null));
+          } else {
+            setProfilePhotoUrl(null);
+          }
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -311,8 +363,10 @@ const Dashboard = () => {
               color="inherit"
               onClick={(e) => setProfileAnchor(e.currentTarget)}
             >
-              <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: 'secondary.main' }}>
-                MS
+              <Avatar src={profilePhotoUrl || undefined}
+                sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: 'secondary.main' }}
+              >       
+                  {!profilePhotoUrl && getInitials(userName, userEmail)}
               </Avatar>
             </IconButton>
           </Box>

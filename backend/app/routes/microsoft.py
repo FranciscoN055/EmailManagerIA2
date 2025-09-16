@@ -223,10 +223,46 @@ def disconnect_microsoft():
 @microsoft_bp.route('/profile')
 @jwt_required()
 def get_microsoft_profile():
-    """Get Microsoft user profile."""
+    """
+    Devuelve el nombre, correo, si tiene foto y otros datos del perfil de Microsoft.
+    """
     try:
         user_id = get_jwt_identity()
-        
+        email_account = EmailAccount.query.filter_by(
+            user_id=user_id,
+            provider='microsoft',
+            is_active=True
+        ).first()
+        if not email_account:
+            return jsonify({'success': False, 'error': 'Microsoft account not connected'}), 400
+
+        service = MicrosoftGraphService()
+        profile = service.get_user_profile(email_account.access_token)
+        has_photo = False
+        if profile:
+            photo_data = service.get_user_photo(email_account.access_token)
+            has_photo = photo_data is not None
+            return jsonify({
+                'success': True,
+                'name': profile.get('displayName'),
+                'email': profile.get('mail') or profile.get('userPrincipalName'),
+                'has_photo': has_photo,
+                'job_title': profile.get('jobTitle', ''),
+                'department': profile.get('department', ''),
+                'office_location': profile.get('officeLocation', '')
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Profile not found'}), 404
+    except Exception as e:
+        logger.error(f"Error getting Microsoft profile: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to get profile'}), 500
+
+@microsoft_bp.route('/profile/photo')
+@jwt_required()
+def get_microsoft_profile_photo():
+    """Get Microsoft user profile photo."""
+    try:
+        user_id = get_jwt_identity()
         email_account = EmailAccount.query.filter_by(
             user_id=user_id,
             provider='microsoft',
@@ -240,31 +276,27 @@ def get_microsoft_profile():
             }), 400
         
         service = MicrosoftGraphService()
-        profile = service.get_user_profile(email_account.access_token)
+        photo_data = service.get_user_photo(email_account.access_token)
         
-        if not profile:
+        if photo_data:
+            from flask import send_file
+            import io
+            return send_file(
+                io.BytesIO(photo_data),
+                mimetype='image/jpeg',
+                as_attachment=False
+            )
+        else:
             return jsonify({
                 'success': False,
-                'error': 'Failed to get profile data'
-            }), 400
-        
-        return jsonify({
-            'success': True,
-            'profile': {
-                'id': profile['id'],
-                'email': profile['mail'] or profile['userPrincipalName'],
-                'name': profile.get('displayName', ''),
-                'job_title': profile.get('jobTitle', ''),
-                'department': profile.get('department', ''),
-                'office_location': profile.get('officeLocation', '')
-            }
-        })
+                'error': 'No profile photo available'
+            }), 404
     
     except Exception as e:
-        logger.error(f"Error getting Microsoft profile: {str(e)}")
+        logger.error(f"Error getting Microsoft profile photo: {str(e)}")
         return jsonify({
             'success': False,
-            'error': 'Failed to get profile'
+            'error': 'Failed to get profile photo'
         }), 500
 
 @microsoft_bp.route('/test-permissions')
