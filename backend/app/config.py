@@ -47,9 +47,9 @@ class Config:
     
     # OpenAI Configuration
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-    OPENAI_MODEL = 'gpt-4'
-    OPENAI_MAX_TOKENS = 1000
-    OPENAI_TEMPERATURE = 0.3
+    OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
+    OPENAI_MAX_TOKENS = int(os.environ.get('OPENAI_MAX_TOKENS', 1000))
+    OPENAI_TEMPERATURE = float(os.environ.get('OPENAI_TEMPERATURE', 0.3))
     
     # Redis Configuration (for Celery)
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'

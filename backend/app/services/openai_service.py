@@ -20,7 +20,7 @@ class OpenAIService:
     def __init__(self, config=None):
         self.config = config or current_app.config
         self.api_key = self.config.get('OPENAI_API_KEY')
-        self.model = self.config.get('OPENAI_MODEL', 'gpt-4')
+        self.model = self.config.get('OPENAI_MODEL', 'gpt-4o-mini')
         self.max_tokens = self.config.get('OPENAI_MAX_TOKENS', 800)
         self.temperature = self.config.get('OPENAI_TEMPERATURE', 0.3)
         
@@ -90,13 +90,19 @@ CONTEXTO ACADÉMICO:
 NIVELES DE URGENCIA:
 1. URGENTE (próxima 1 hora): Emergencias médicas, accidentes estudiantiles, crisis de seguridad, situaciones que requieren acción INMEDIATA
 2. ALTA (próximas 3 horas): Problemas académicos graves, reuniones urgentes hoy, deadlines críticos, estudiantes en crisis
-3. MEDIA (hoy): Consultas generales, coordinación con profesores, tareas administrativas regulares
-4. BAJA (mañana o más): Información general, invitaciones futuras, documentación no urgente
+3. MEDIA (hoy o próximos días): Solicitudes académicas con plazo definido, cambios de horario, coordinación con profesores, tareas administrativas que requieren seguimiento pero NO son emergencias
+4. BAJA (mañana o más): Información general, invitaciones futuras, documentación no urgente, consultas sin plazo específico
 
 PALABRAS CLAVE CRÍTICAS para URGENTE:
 - Emergencias: accidente, lesión, hospital, ambulancia, herido, sangre, desmayo, caída
 - Crisis: ayuda, socorro, crítico, grave, urgente, emergencia
 - Seguridad: peligro, amenaza, violencia, drogas, alcohol
+
+EJEMPLOS DE CLASIFICACIÓN:
+- URGENTE: "Estudiante herido en laboratorio, necesita ambulancia"
+- ALTA: "Reunión urgente hoy a las 3pm para resolver problema académico"
+- MEDIA: "Solicitud cambio de horario con plazo viernes 20 septiembre"
+- BAJA: "Consulta general sobre horarios del próximo semestre"
 
 CORREO A CLASIFICAR:
 Remitente: {email_data.get('sender_name', '')} <{email_data.get('sender_email', '')}>
@@ -127,13 +133,20 @@ Responde SOLO en formato JSON válido:
     def classify_email(self, email_data: Dict) -> Dict:
         """Classify a single email using OpenAI GPT-4."""
         
+        logger.info(f"Starting email classification for: {email_data.get('subject', 'No subject')[:50]}...")
+        logger.info(f"OpenAI client status: {self.client is not None}")
+        logger.info(f"API key configured: {bool(self.api_key)}")
+        logger.info(f"Model: {self.model}")
+        
         if not self.client:
-            logger.warning("OpenAI client not configured")
+            logger.warning("OpenAI client not configured - using fallback")
             return self._fallback_classification(email_data)
         
         try:
             prompt = self._build_classification_prompt(email_data)
+            logger.info(f"Prompt length: {len(prompt)} characters")
             
+            logger.info("Making OpenAI API call...")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -143,12 +156,22 @@ Responde SOLO en formato JSON válido:
                 max_tokens=self.max_tokens,
                 temperature=self.temperature
             )
+            logger.info("OpenAI API call successful")
             
             content = response.choices[0].message.content.strip()
+            logger.info(f"OpenAI response received: {content[:200]}...")
+            
+            # Clean response - remove markdown formatting if present
+            if content.startswith('```json'):
+                content = content[7:]  # Remove ```json
+            if content.endswith('```'):
+                content = content[:-3]  # Remove ```
+            content = content.strip()
             
             # Parse JSON response
             try:
                 classification = json.loads(content)
+                logger.info(f"JSON parsed successfully: {classification}")
                 
                 # Validate required fields
                 required_fields = ['urgency_category', 'confidence_score', 'reasoning']
@@ -166,16 +189,18 @@ Responde SOLO en formato JSON válido:
                 confidence = float(classification['confidence_score'])
                 classification['confidence_score'] = max(0.0, min(1.0, confidence))
                 
-                logger.info(f"Email classified as {urgency} with confidence {confidence}")
+                logger.info(f"✅ Email classified as {urgency} with confidence {confidence}")
                 return classification
                 
             except (json.JSONDecodeError, ValueError, KeyError) as e:
-                logger.error(f"Error parsing OpenAI response: {e}")
+                logger.error(f"❌ Error parsing OpenAI response: {e}")
                 logger.error(f"Raw response: {content}")
+                logger.warning("Falling back to rule-based classification")
                 return self._fallback_classification(email_data)
         
         except Exception as e:
-            logger.error(f"OpenAI API error: {str(e)}")
+            logger.error(f"❌ OpenAI API error: {str(e)}")
+            logger.warning("Falling back to rule-based classification")
             return self._fallback_classification(email_data)
     
     def _fallback_classification(self, email_data: Dict) -> Dict:
