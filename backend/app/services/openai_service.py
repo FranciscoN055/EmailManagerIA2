@@ -21,8 +21,8 @@ class OpenAIService:
         self.config = config or current_app.config
         self.api_key = self.config.get('OPENAI_API_KEY')
         self.model = self.config.get('OPENAI_MODEL', 'gpt-4o-mini')
-        self.max_tokens = self.config.get('OPENAI_MAX_TOKENS', 800)
-        self.temperature = self.config.get('OPENAI_TEMPERATURE', 0.3)
+        self.max_tokens = int(self.config.get('OPENAI_MAX_TOKENS', 800))
+        self.temperature = float(self.config.get('OPENAI_TEMPERATURE', 0.3))
         
         self.client = None
         if self.api_key and self.api_key != 'your-openai-api-key-here':

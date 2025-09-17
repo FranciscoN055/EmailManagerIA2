@@ -458,7 +458,7 @@ def mark_email_read(email_id):
             'error': 'Failed to mark email as read'
         }), 500
 
-@emails_bp.route('/sync-status', methods=['POST'])
+@emails_bp.route('/sync-status', methods=['GET', 'POST'])
 @jwt_required()
 def sync_email_statuses():
     """Sync read/unread status of all emails with Microsoft Graph."""
@@ -478,6 +478,16 @@ def sync_email_statuses():
                 'error': 'Microsoft account not connected'
             }), 400
         
+        # Handle both GET and POST requests
+        if request.method == 'GET':
+            # For GET requests, just return status without syncing
+            return jsonify({
+                'success': True,
+                'message': 'Sync status endpoint available',
+                'account_connected': True
+            })
+        
+        # For POST requests, perform actual sync
         # Get parameters
         data = request.get_json() or {}
         limit = min(data.get('limit', 100), 200)  # Max 200 emails
