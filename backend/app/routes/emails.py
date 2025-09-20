@@ -1369,8 +1369,8 @@ def get_sent_emails():
             is_reply = (
                 subject.lower().startswith('re:') or
                 subject.lower().startswith('resp:') or
-                subject.lower().startswith('respuesta:') or
-                'conversationId' in email_data  # Microsoft Graph conversation threading
+                subject.lower().startswith('respuesta:')
+                # Remove conversationId check as it exists for all emails
             )
 
             email_type = 'reply' if is_reply else 'sent'
