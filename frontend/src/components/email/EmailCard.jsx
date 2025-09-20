@@ -278,7 +278,7 @@ const EmailCard = ({
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
             {email.emailType === 'reply' && (
               <Chip
-                label="↩️ Respondido"
+                label="Respondido"
                 size="small"
                 sx={{
                   backgroundColor: '#17a2b8',
@@ -293,7 +293,7 @@ const EmailCard = ({
             )}
             {email.emailType === 'sent' && (
               <Chip
-                label="📤 Enviado"
+                label="Enviado"
                 size="small"
                 sx={{
                   backgroundColor: '#28a745',
@@ -321,20 +321,23 @@ const EmailCard = ({
                 }}
               />
             )}
-            <Chip
-              label={`IA ${email.ai_confidence !== undefined ? Math.round(email.ai_confidence * 100) : 0}%`}
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: getConfidenceColor(email.ai_confidence),
-                color: getConfidenceColor(email.ai_confidence),
-                fontSize: '0.625rem',
-                height: 18,
-                '& .MuiChip-label': {
-                  px: 0.75,
-                },
-              }}
-            />
+            {/* Only show AI confidence for received emails, not sent or replied emails */}
+            {email.emailType !== 'sent' && email.emailType !== 'reply' && (
+              <Chip
+                label={`IA ${email.ai_confidence !== undefined ? Math.round(email.ai_confidence * 100) : 0}%`}
+                size="small"
+                variant="outlined"
+                sx={{
+                  borderColor: getConfidenceColor(email.ai_confidence),
+                  color: getConfidenceColor(email.ai_confidence),
+                  fontSize: '0.625rem',
+                  height: 18,
+                  '& .MuiChip-label': {
+                    px: 0.75,
+                  },
+                }}
+              />
+            )}
           </Box>
 
           <Box
