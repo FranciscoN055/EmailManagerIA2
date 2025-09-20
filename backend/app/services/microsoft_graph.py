@@ -149,13 +149,21 @@ class MicrosoftGraphService:
         """Get user emails from Microsoft Graph."""
         headers = {'Authorization': f'Bearer {access_token}'}
         
-        # Build query parameters
-        params = {
-            '$top': top,
-            '$skip': skip,
-            '$orderby': 'receivedDateTime desc',
-            '$select': 'id,subject,sender,from,toRecipients,receivedDateTime,createdDateTime,body,isRead,importance,flag,hasAttachments,internetMessageHeaders'
-        }
+        # Build query parameters - adjust for sent items folder
+        if folder == 'sentitems':
+            params = {
+                '$top': top,
+                '$skip': skip,
+                '$orderby': 'sentDateTime desc',
+                '$select': 'id,subject,sender,from,toRecipients,sentDateTime,createdDateTime,body,isRead,importance,flag,hasAttachments,conversationId,conversationIndex'
+            }
+        else:
+            params = {
+                '$top': top,
+                '$skip': skip,
+                '$orderby': 'receivedDateTime desc',
+                '$select': 'id,subject,sender,from,toRecipients,receivedDateTime,createdDateTime,body,isRead,importance,flag,hasAttachments,internetMessageHeaders'
+            }
         
         url = f'https://graph.microsoft.com/v1.0/me/mailFolders/{folder}/messages'
         

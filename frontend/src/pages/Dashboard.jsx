@@ -280,29 +280,20 @@ const Dashboard = () => {
     setIsSendingReply(true);
     try {
       const response = await emailAPI.replyToEmail(emailId, { body: replyBody });
-      
+
       if (response.data.success) {
-        // Actualizar el email en la lista local
+        // Remover el email original de la lista (no moverlo a procesados)
+        // Solo la respuesta enviada aparecerá en procesados cuando se actualice
         setEmails(prevEmails =>
-          prevEmails.map(email =>
-            email.id === emailId 
-              ? { 
-                  ...email, 
-                  isRead: true, 
-                  urgency: 'processed',
-                  processing_status: 'processed'
-                } 
-              : email
-          )
+          prevEmails.filter(email => email.id !== emailId)
         );
-        
-        // Actualizar estadísticas
+
+        // Actualizar estadísticas - solo decrementar del original, procesados se actualizará al cargar sent emails
         setStats(prevStats => ({
           ...prevStats,
           unread: Math.max(0, (prevStats.unread || 0) - 1),
           byUrgency: {
             ...prevStats.byUrgency,
-            processed: (prevStats.byUrgency?.processed || 0) + 1,
             [selectedEmail?.urgency]: Math.max(0, (prevStats.byUrgency?.[selectedEmail?.urgency] || 0) - 1)
           }
         }));

@@ -272,8 +272,11 @@ def get_emails():
                 }
             })
         
-        # Build query for emails from user's accounts
-        query = Email.query.filter(Email.email_account_id.in_(account_ids))
+        # Build query for emails from user's accounts (exclude replied emails)
+        query = Email.query.filter(
+            Email.email_account_id.in_(account_ids),
+            Email.processing_status != 'replied'  # Don't show emails that have been replied to
+        )
         
         if urgency:
             query = query.filter(Email.urgency_category == urgency)
@@ -810,13 +813,11 @@ def reply_to_email(email_id):
         logger.info(f"Send email result: {success}")
         
         if success:
-            # Mark original email as read and processed
+            # Mark original email as read and hidden (replied to)
             email.is_read = True
-            email.processing_status = 'processed'
-            if email.urgency_category not in ['processed']:
-                email.urgency_category = 'processed'
-                email.priority_level = 5
-            
+            email.processing_status = 'replied'  # Different status so it doesn't appear in dashboard
+            # Don't change urgency_category to 'processed' to avoid showing in processed column
+
             db.session.commit()
             
             return jsonify({
