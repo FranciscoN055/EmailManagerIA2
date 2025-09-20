@@ -30,7 +30,20 @@ const EmailCard = ({
   const [isHovered, setIsHovered] = useState(false);
 
   const getSenderName = (email) => {
-    // Handle different possible data structures for sender
+    // For sent emails, show recipient instead of sender
+    if (email.emailType === 'sent') {
+      if (email.sender) {
+        if (typeof email.sender === 'string') {
+          return email.sender;
+        }
+        if (typeof email.sender === 'object') {
+          return email.sender.name || email.sender.email || 'Unknown Recipient';
+        }
+      }
+      return 'Unknown Recipient';
+    }
+
+    // Handle different possible data structures for sender (received emails)
     if (email.sender_name && typeof email.sender_name === 'string') {
       return email.sender_name;
     }
@@ -132,9 +145,11 @@ const EmailCard = ({
     if (e.target.closest('button') || e.target.closest('[role="button"]')) {
       return;
     }
-    
-    // Abrir la ventana de respuesta como si hubieran clickeado "Responder"
-    onReply?.(email);
+
+    // Only open reply modal for received emails, not sent or replied emails
+    if (email.emailType !== 'sent' && email.emailType !== 'reply') {
+      onReply?.(email);
+    }
   };
 
   return (
@@ -261,19 +276,51 @@ const EmailCard = ({
         {/* Footer con badges y acciones */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-            <Chip
-              label={getPriorityLabel(email.urgency)}
-              size="small"
-              sx={{
-                backgroundColor: getPriorityColor(email.urgency),
-                color: 'white',
-                fontSize: '0.625rem',
-                height: 18,
-                '& .MuiChip-label': {
-                  px: 0.75,
-                },
-              }}
-            />
+            {email.emailType === 'reply' && (
+              <Chip
+                label="↩️ Respondido"
+                size="small"
+                sx={{
+                  backgroundColor: '#17a2b8',
+                  color: 'white',
+                  fontSize: '0.625rem',
+                  height: 18,
+                  '& .MuiChip-label': {
+                    px: 0.75,
+                  },
+                }}
+              />
+            )}
+            {email.emailType === 'sent' && (
+              <Chip
+                label="📤 Enviado"
+                size="small"
+                sx={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  fontSize: '0.625rem',
+                  height: 18,
+                  '& .MuiChip-label': {
+                    px: 0.75,
+                  },
+                }}
+              />
+            )}
+            {email.emailType !== 'sent' && email.emailType !== 'reply' && (
+              <Chip
+                label={getPriorityLabel(email.urgency)}
+                size="small"
+                sx={{
+                  backgroundColor: getPriorityColor(email.urgency),
+                  color: 'white',
+                  fontSize: '0.625rem',
+                  height: 18,
+                  '& .MuiChip-label': {
+                    px: 0.75,
+                  },
+                }}
+              />
+            )}
             <Chip
               label={`IA ${email.ai_confidence !== undefined ? Math.round(email.ai_confidence * 100) : 0}%`}
               size="small"
@@ -290,27 +337,30 @@ const EmailCard = ({
             />
           </Box>
 
-          <Box 
-            sx={{ 
-              display: 'flex', 
+          <Box
+            sx={{
+              display: 'flex',
               gap: 0.5,
               opacity: isHovered ? 1 : 0,
               transition: 'opacity 0.2s',
             }}
           >
-            <Tooltip title="Responder">
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReply?.(email);
-                }}
-                sx={{ color: 'primary.main' }}
-              >
-                <Reply fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {!email.isRead && (
+            {/* Only show reply button for received emails, not sent or replied emails */}
+            {email.emailType !== 'sent' && email.emailType !== 'reply' && (
+              <Tooltip title="Responder">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReply?.(email);
+                  }}
+                  sx={{ color: 'primary.main' }}
+                >
+                  <Reply fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {!email.isRead && email.emailType !== 'sent' && email.emailType !== 'reply' && (
               <Tooltip title="Marcar como leído">
                 <IconButton
                   size="small"
@@ -323,17 +373,19 @@ const EmailCard = ({
                 </IconButton>
               </Tooltip>
             )}
-            <Tooltip title="Archivar">
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onArchive?.(email.id);
-                }}
-              >
-                <Archive fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {email.emailType !== 'sent' && email.emailType !== 'reply' && (
+              <Tooltip title="Archivar">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive?.(email.id);
+                  }}
+                >
+                  <Archive fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         </Box>
       </CardContent>

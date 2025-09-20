@@ -1282,3 +1282,123 @@ def get_openai_status():
             'success': False,
             'error': 'Failed to get OpenAI status'
         }), 500
+
+@emails_bp.route('/sent', methods=['GET'])
+@jwt_required()
+def get_sent_emails():
+    """Get user's sent emails from Microsoft Graph SentItems folder."""
+    try:
+        user_id = get_jwt_identity()
+
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 200)
+
+        # Get email account
+        email_account = EmailAccount.query.filter_by(
+            user_id=user_id,
+            provider='microsoft',
+            is_active=True
+        ).first()
+
+        if not email_account:
+            return jsonify({
+                'success': False,
+                'error': 'Microsoft account not connected'
+            }), 400
+
+        # Check if we have a valid access token
+        if not email_account.access_token:
+            return jsonify({
+                'success': False,
+                'error': 'No access token available. Please reconnect your Microsoft account.'
+            }), 401
+
+        service = MicrosoftGraphService()
+
+        # Fetch sent emails from Microsoft Graph SentItems folder
+        emails_data = service.get_user_emails(
+            email_account.access_token,
+            top=per_page,
+            folder='sentitems'  # This is the SentItems folder
+        )
+
+        if not emails_data:
+            logger.error(f"Failed to fetch sent emails - likely token expired for user {user_id}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch sent emails from Microsoft. Token may have expired. Please reconnect your account.'
+            }), 401
+
+        if 'value' not in emails_data:
+            logger.error(f"Unexpected response format from Microsoft Graph: {emails_data}")
+            return jsonify({
+                'success': False,
+                'error': 'Unexpected response format from Microsoft Graph'
+            }), 400
+
+        # Format sent emails for frontend
+        sent_emails = []
+        for email_data in emails_data['value']:
+            # Extract recipient information
+            recipients = email_data.get('toRecipients', [])
+            recipient_names = []
+            recipient_emails = []
+
+            for recipient in recipients:
+                email_addr = recipient.get('emailAddress', {})
+                name = email_addr.get('name', '')
+                email = email_addr.get('address', '')
+                if name:
+                    recipient_names.append(name)
+                if email:
+                    recipient_emails.append(email)
+
+            # Format recipient display (like Outlook shows)
+            recipient_display = '; '.join(recipient_names) if recipient_names else '; '.join(recipient_emails)
+
+            # Extract email preview
+            body_preview = extract_email_preview(
+                email_data.get('body', {}).get('content', ''),
+                max_length=200
+            )
+
+            # Determine if this is a reply or a new email
+            subject = email_data.get('subject', '')
+            is_reply = (
+                subject.lower().startswith('re:') or
+                subject.lower().startswith('resp:') or
+                subject.lower().startswith('respuesta:') or
+                'conversationId' in email_data  # Microsoft Graph conversation threading
+            )
+
+            email_type = 'reply' if is_reply else 'sent'
+
+            sent_emails.append({
+                'id': email_data['id'],
+                'subject': subject,
+                'recipient': {
+                    'name': recipient_display,  # This is what shows in "To" field
+                    'emails': recipient_emails
+                },
+                'preview': body_preview,
+                'body_content': email_data.get('body', {}).get('content', ''),
+                'sent_at': email_data.get('sentDateTime', ''),
+                'has_attachments': email_data.get('hasAttachments', False),
+                'email_type': email_type,  # 'sent' or 'reply'
+                'is_reply': is_reply
+            })
+
+        return jsonify({
+            'success': True,
+            'emails': sent_emails,
+            'total_found': len(sent_emails),
+            'message': f'Retrieved {len(sent_emails)} sent emails'
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting sent emails: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to retrieve sent emails'
+        }), 500

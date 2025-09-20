@@ -48,6 +48,7 @@ function getInitials(name, email) {
 
 const Dashboard = () => {
   const [emails, setEmails] = useState([]);
+  const [sentEmails, setSentEmails] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
   const [notificationAnchor, setNotificationAnchor] = useState(null);
@@ -142,16 +143,20 @@ const Dashboard = () => {
       console.log('Syncing emails from Microsoft Graph...');
       const syncResponse = await emailAPI.syncEmails({ count: 50, classify: true });
       console.log('Email sync completed:', syncResponse.data);
-      
+
       // Also sync email read/unread statuses
       console.log('Syncing email statuses...');
       const statusResponse = await emailAPI.syncEmailStatuses({ limit: 100 });
       console.log('Status sync completed:', statusResponse.data);
-      
-      // Then, get all emails
+
+      // Load received emails
       console.log('Fetching emails...');
       const response = await emailAPI.getEmails();
-      
+
+      // Load sent emails for processed column
+      console.log('Fetching sent emails...');
+      const sentResponse = await emailAPI.getSentEmails({ per_page: 50 });
+
       if (response.data && response.data.emails) {
         const apiEmails = response.data.emails.map(email => ({
           id: email.id,
@@ -164,13 +169,38 @@ const Dashboard = () => {
           receivedAt: email.received_at,
           hasAttachments: email.has_attachments,
           ai_confidence: email.ai_confidence || 0,
-          aiReason: email.ai_classification_reason || ''
+          aiReason: email.ai_classification_reason || '',
+          emailType: 'received'
         }));
         setEmails(apiEmails);
         console.log(`Successfully loaded ${apiEmails.length} real emails`);
       } else {
         console.warn('No emails returned from API, using mock data');
         setEmails(generateMockEmails());
+      }
+
+      // Process sent emails for the "Procesados" column
+      if (sentResponse.data && sentResponse.data.emails) {
+        const apiSentEmails = sentResponse.data.emails.map(email => ({
+          id: `sent_${email.id}`,
+          subject: email.subject,
+          sender: email.recipient, // For sent emails, show recipient as "sender"
+          preview: email.preview,
+          urgency: 'processed',
+          priority: 5,
+          isRead: true, // Sent emails are always "read"
+          receivedAt: email.sent_at,
+          hasAttachments: email.has_attachments,
+          ai_confidence: 1.0,
+          aiReason: email.email_type === 'reply' ? 'Respuesta enviada' : 'Correo enviado',
+          emailType: email.email_type, // 'sent' or 'reply'
+          isReply: email.is_reply || false
+        }));
+        setSentEmails(apiSentEmails);
+        console.log(`Successfully loaded ${apiSentEmails.length} sent emails`);
+      } else {
+        console.warn('No sent emails returned from API');
+        setSentEmails([]);
       }
     } catch (error) {
       console.error('Failed to load emails:', error);
@@ -182,6 +212,7 @@ const Dashboard = () => {
       }
       console.log('Using mock data as fallback');
       setEmails(generateMockEmails());
+      setSentEmails([]);
     } finally {
       setIsLoading(false);
     }
@@ -578,7 +609,15 @@ const Dashboard = () => {
           }}
         >
           {columns.map(column => {
-            const columnEmails = getEmailsByUrgency(filteredEmails, column.urgency);
+            let columnEmails;
+            if (column.urgency === 'processed') {
+              // For processed column, show both processed emails and sent emails
+              const processedEmails = getEmailsByUrgency(filteredEmails, 'processed');
+              columnEmails = [...processedEmails, ...sentEmails];
+            } else {
+              columnEmails = getEmailsByUrgency(filteredEmails, column.urgency);
+            }
+
             return (
               <EmailColumn
                 key={column.id}

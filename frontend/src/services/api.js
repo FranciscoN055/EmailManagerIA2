@@ -83,6 +83,7 @@ export const emailAPI = {
   syncEmailStatuses: (data) => api.post('/emails/sync-status', data),
   sendEmail: (data) => api.post('/emails/send', data),
   replyToEmail: (emailId, data) => api.post(`/emails/${emailId}/reply`, data),
+  getSentEmails: (params) => api.get('/emails/sent', { params }),
 };
 
 export const microsoftAPI = {
