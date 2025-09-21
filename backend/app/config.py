@@ -74,6 +74,9 @@ class Config:
         'https://email-manager-7z56xba0p-vhernandezls-projects.vercel.app',
         'https://email-manager-ia-2.vercel.app'
     ]
+    
+    # CORS additional configuration for production
+    CORS_SUPPORTS_CREDENTIALS = True
 
 class DevelopmentConfig(Config):
     """Development configuration."""
