@@ -25,7 +25,8 @@ class MicrosoftGraphService:
         self.scopes = [
             "Mail.ReadWrite", 
             "Mail.Send",
-            "User.Read"
+            "User.Read",
+            "offline_access"
         ]
     
     def get_status(self):
@@ -51,7 +52,7 @@ class MicrosoftGraphService:
                 'client_id': self.client_id,
                 'response_type': 'code',
                 'redirect_uri': self.redirect_uri,
-                'scope': ' '.join(self.scopes + ['offline_access', 'openid', 'profile']),
+                'scope': ' '.join(self.scopes + ['openid', 'profile']),
                 'response_mode': 'query',
                 'prompt': 'consent'  # Force consent to get fresh permissions
             }
