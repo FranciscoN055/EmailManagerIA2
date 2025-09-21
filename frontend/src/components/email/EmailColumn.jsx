@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Paper,
   Typography,
@@ -17,6 +17,8 @@ const EmailColumn = ({
   onReply,
   onEmailDrop
 }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [dragOverIndex, setDragOverIndex] = useState(-1);
   const getColumnColor = (urgency) => {
     switch (urgency) {
       case 'urgent': return '#dc3545';
@@ -63,29 +65,67 @@ const EmailColumn = ({
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    setIsDragOver(true);
+    
+    // Calcular la posición de inserción basada en la posición del mouse
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const emailHeight = 120; // Altura aproximada de cada email
+    const index = Math.floor(y / emailHeight);
+    setDragOverIndex(Math.min(index, emails.length));
+  };
+
+  const handleDragLeave = (e) => {
+    // Solo resetear si realmente salimos del área de drop
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDragOver(false);
+      setDragOverIndex(-1);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     const emailId = e.dataTransfer.getData('emailId'); 
     onEmailDrop(emailId, column.id);
+    setIsDragOver(false);
+    setDragOverIndex(-1);
   };
 
   return (
     <Paper
-      elevation={2}
+      elevation={isDragOver ? 8 : 2}
       sx={{
         width: 280,
         minWidth: 280,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: 'background.paper',
+        backgroundColor: isDragOver 
+          ? `rgba(${getColumnColor(column.urgency).slice(1).match(/.{2}/g).map(hex => parseInt(hex, 16)).join(', ')}, 0.1)` 
+          : 'background.paper',
         borderRadius: 2,
         overflow: 'hidden',
         flexShrink: 0,
+        border: isDragOver 
+          ? `2px solid ${getColumnColor(column.urgency)}` 
+          : '2px solid transparent',
+        transform: isDragOver ? 'scale(1.02)' : 'scale(1)',
+        transition: 'all 0.2s ease-in-out',
+        position: 'relative',
+        '&::before': isDragOver ? {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: `rgba(${getColumnColor(column.urgency).slice(1).match(/.{2}/g).map(hex => parseInt(hex, 16)).join(', ')}, 0.05)`,
+          zIndex: 1,
+          pointerEvents: 'none',
+        } : {},
       }}
       onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Header de la columna */}
@@ -176,23 +216,63 @@ const EmailColumn = ({
             </Typography>
           </Box>
         ) : (
-          emails.map((email) => (
-            <EmailCard
-              key={email.id}
-              email={email}
-              onMarkAsRead={onMarkAsRead}
-              onArchive={onArchive}
-              onToggleStar={onToggleStar}
-              onReply={onReply}
-              draggable={true}
-              onDragStart={e => {
-                e.dataTransfer.setData('emailId', email.id);
-              }}
-              onDragEnd={e => {
-                e.dataTransfer.clearData();
-              }}
-            />
+          emails.map((email, index) => (
+            <React.Fragment key={email.id}>
+              {/* Línea de inserción visual */}
+              {isDragOver && dragOverIndex === index && (
+                <Box
+                  sx={{
+                    height: '3px',
+                    backgroundColor: getColumnColor(column.urgency),
+                    borderRadius: '2px',
+                    mb: 1,
+                    mx: 1,
+                    boxShadow: `0 0 8px ${getColumnColor(column.urgency)}`,
+                    animation: 'pulse 1s infinite',
+                    '@keyframes pulse': {
+                      '0%': { opacity: 0.6 },
+                      '50%': { opacity: 1 },
+                      '100%': { opacity: 0.6 },
+                    },
+                  }}
+                />
+              )}
+              <EmailCard
+                email={email}
+                onMarkAsRead={onMarkAsRead}
+                onArchive={onArchive}
+                onToggleStar={onToggleStar}
+                onReply={onReply}
+                draggable={true}
+                onDragStart={e => {
+                  e.dataTransfer.setData('emailId', email.id);
+                }}
+                onDragEnd={e => {
+                  e.dataTransfer.clearData();
+                }}
+              />
+            </React.Fragment>
           ))
+        )}
+        
+        {/* Línea de inserción al final de la lista */}
+        {isDragOver && dragOverIndex >= emails.length && emails.length > 0 && (
+          <Box
+            sx={{
+              height: '3px',
+              backgroundColor: getColumnColor(column.urgency),
+              borderRadius: '2px',
+              mt: 1,
+              mx: 1,
+              boxShadow: `0 0 8px ${getColumnColor(column.urgency)}`,
+              animation: 'pulse 1s infinite',
+              '@keyframes pulse': {
+                '0%': { opacity: 0.6 },
+                '50%': { opacity: 1 },
+                '100%': { opacity: 0.6 },
+              },
+            }}
+          />
         )}
       </Box>
 

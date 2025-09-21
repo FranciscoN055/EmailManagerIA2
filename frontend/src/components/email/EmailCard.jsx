@@ -160,20 +160,31 @@ const EmailCard = ({
       sx={{
         mb: 1,
         cursor: draggable ? 'grab' : 'pointer',
-        opacity: isDragging ? 0.5 : 1,
-        transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
-        transition: 'all 0.15s ease-in-out',
+        opacity: isDragging ? 0.8 : 1,
+        transform: isDragging 
+          ? 'rotate(2deg) scale(1.02)' 
+          : isHovered 
+            ? 'translateY(-1px)' 
+            : 'translateY(0)',
+        transition: 'all 0.2s ease-in-out',
         border: email.isRead ? 'none' : '1px solid',
         borderColor: email.isRead ? 'transparent' : 'primary.main',
         borderLeftWidth: '3px',
         borderLeftColor: getPriorityColor(email.urgency),
         minHeight: 120,
+        boxShadow: isDragging 
+          ? '0 8px 25px rgba(0,0,0,0.25), 0 0 0 2px rgba(25, 118, 210, 0.3)' 
+          : 'none',
+        backgroundColor: isDragging 
+          ? 'rgba(255, 255, 255, 0.95)' 
+          : 'background.paper',
+        backdropFilter: isDragging ? 'blur(2px)' : 'none',
         '&:hover': {
-          boxShadow: 2,
-          backgroundColor: 'action.hover',
+          boxShadow: isDragging ? '0 8px 25px rgba(0,0,0,0.25), 0 0 0 2px rgba(25, 118, 210, 0.3)' : 2,
+          backgroundColor: isDragging ? 'rgba(255, 255, 255, 0.95)' : 'action.hover',
         },
         '&:active': {
-          transform: 'translateY(0px)',
+          transform: isDragging ? 'rotate(2deg) scale(1.02)' : 'translateY(0px)',
         }
       }}
       onMouseEnter={() => setIsHovered(true)}
