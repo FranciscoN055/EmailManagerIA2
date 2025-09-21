@@ -29,8 +29,8 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     jwt.init_app(app)
     
-    # Configure CORS
-    CORS(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
+    # Configure CORS - Temporary permissive for debugging
+    CORS(app, origins="*", supports_credentials=True)
     
     # Import models (this ensures they are registered with SQLAlchemy)
     from .models import User, EmailAccount, Email
