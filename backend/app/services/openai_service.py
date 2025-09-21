@@ -174,8 +174,7 @@ Responde SOLO en formato JSON válido:
             # Configure generation parameters
             generation_config = {
                 "temperature": self.temperature,
-                "max_output_tokens": self.max_tokens,
-                "response_mime_type": "application/json"
+                "max_output_tokens": self.max_tokens
             }
 
             # Add system instruction to the prompt
