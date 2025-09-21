@@ -65,6 +65,12 @@ const EmailColumn = ({
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    
+    // No permitir drag & drop en la columna de procesados
+    if (column.urgency === 'processed') {
+      return;
+    }
+    
     setIsDragOver(true);
     
     // Calcular la posición de inserción basada en la posición del mouse
@@ -85,6 +91,12 @@ const EmailColumn = ({
 
   const handleDrop = (e) => {
     e.preventDefault();
+    
+    // No permitir drop en la columna de procesados
+    if (column.urgency === 'processed') {
+      return;
+    }
+    
     const emailId = e.dataTransfer.getData('emailId'); 
     onEmailDrop(emailId, column.id);
     setIsDragOver(false);
@@ -93,26 +105,26 @@ const EmailColumn = ({
 
   return (
     <Paper
-      elevation={isDragOver ? 8 : 2}
+      elevation={isDragOver && column.urgency !== 'processed' ? 8 : 2}
       sx={{
         width: 280,
         minWidth: 280,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: isDragOver 
+        backgroundColor: isDragOver && column.urgency !== 'processed'
           ? `rgba(${getColumnColor(column.urgency).slice(1).match(/.{2}/g).map(hex => parseInt(hex, 16)).join(', ')}, 0.1)` 
           : 'background.paper',
         borderRadius: 2,
         overflow: 'hidden',
         flexShrink: 0,
-        border: isDragOver 
+        border: isDragOver && column.urgency !== 'processed'
           ? `2px solid ${getColumnColor(column.urgency)}` 
           : '2px solid transparent',
-        transform: isDragOver ? 'scale(1.02)' : 'scale(1)',
+        transform: isDragOver && column.urgency !== 'processed' ? 'scale(1.02)' : 'scale(1)',
         transition: 'all 0.2s ease-in-out',
         position: 'relative',
-        '&::before': isDragOver ? {
+        '&::before': isDragOver && column.urgency !== 'processed' ? {
           content: '""',
           position: 'absolute',
           top: 0,
@@ -219,7 +231,7 @@ const EmailColumn = ({
           emails.map((email, index) => (
             <React.Fragment key={email.id}>
               {/* Línea de inserción visual */}
-              {isDragOver && dragOverIndex === index && (
+              {isDragOver && dragOverIndex === index && column.urgency !== 'processed' && (
                 <Box
                   sx={{
                     height: '3px',
@@ -243,7 +255,7 @@ const EmailColumn = ({
                 onArchive={onArchive}
                 onToggleStar={onToggleStar}
                 onReply={onReply}
-                draggable={true}
+                draggable={column.urgency !== 'processed'}
                 onDragStart={e => {
                   e.dataTransfer.setData('emailId', email.id);
                 }}
@@ -256,7 +268,7 @@ const EmailColumn = ({
         )}
         
         {/* Línea de inserción al final de la lista */}
-        {isDragOver && dragOverIndex >= emails.length && emails.length > 0 && (
+        {isDragOver && dragOverIndex >= emails.length && emails.length > 0 && column.urgency !== 'processed' && (
           <Box
             sx={{
               height: '3px',
