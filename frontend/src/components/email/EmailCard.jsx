@@ -25,7 +25,10 @@ const EmailCard = ({
   onArchive, 
   onToggleStar,
   onReply,
-  isDragging = false 
+  isDragging = false,
+  draggable = false,
+  onDragStart,
+  onDragEnd 
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -156,7 +159,7 @@ const EmailCard = ({
     <Card
       sx={{
         mb: 1,
-        cursor: 'pointer',
+        cursor: draggable ? 'grab' : 'pointer',
         opacity: isDragging ? 0.5 : 1,
         transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
         transition: 'all 0.15s ease-in-out',
@@ -176,6 +179,9 @@ const EmailCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleCardClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
     >
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
         {/* Header con avatar y acciones */}

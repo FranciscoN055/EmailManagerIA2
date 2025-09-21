@@ -164,6 +164,7 @@ const Dashboard = () => {
           sender: email.sender,
           preview: email.body_preview,
           urgency: email.urgency_category,
+          urgency_category: email.urgency_category, // Asegurar que ambos estén sincronizados
           priority: email.priority_level,
           isRead: email.is_read,
           receivedAt: email.received_at,
@@ -321,6 +322,57 @@ const Dashboard = () => {
     if (filterBy === 'starred') return matchesSearch && email.isStarred;
     return matchesSearch;
   });
+
+  const handleEmailDrop = async (emailId, newUrgency) => {
+    // Actualizar UI inmediatamente
+    setEmails(prevEmails =>
+      prevEmails.map(email =>
+        email.id === emailId
+          ? { ...email, urgency: newUrgency, urgency_category: newUrgency }
+          : email
+      )
+    );
+    
+    try {
+      const token = localStorage.getItem('token'); // Usar 'token' en lugar de 'access_token'
+      const response = await fetch(`http://localhost:5000/api/emails/${emailId}/update-urgency`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ urgency_category: newUrgency }),
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        console.error('Error del servidor:', result.error);
+        // Revertir el cambio visual si falla
+        setEmails(prevEmails =>
+          prevEmails.map(email =>
+            email.id === emailId
+              ? { ...email, urgency: result.original_urgency || 'medium', urgency_category: result.original_urgency || 'medium' }
+              : email
+          )
+        );
+        alert('Error al actualizar la prioridad del correo');
+      } else {
+        console.log('✅ Prioridad actualizada correctamente');
+      }
+    } catch (error) {
+      console.error('Error actualizando prioridad:', error);
+      // Revertir el cambio visual si falla
+      setEmails(prevEmails =>
+        prevEmails.map(email =>
+          email.id === emailId
+            ? { ...email, urgency: 'medium', urgency_category: 'medium' }
+            : email
+        )
+      );
+      alert('Error de conexión al actualizar la prioridad');
+    }
+  };
 
   return (
     <Box sx={{ flexGrow: 1, height: '100vh', backgroundColor: 'background.default' }}>
@@ -618,6 +670,7 @@ const Dashboard = () => {
                 onArchive={handleArchive}
                 onToggleStar={handleToggleStar}
                 onReply={handleReply}
+                onEmailDrop={handleEmailDrop}
               />
             );
           })}

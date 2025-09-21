@@ -15,6 +15,7 @@ const EmailColumn = ({
   onArchive, 
   onToggleStar,
   onReply,
+  onEmailDrop
 }) => {
   const getColumnColor = (urgency) => {
     switch (urgency) {
@@ -60,6 +61,16 @@ const EmailColumn = ({
     }
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const emailId = e.dataTransfer.getData('emailId'); 
+    onEmailDrop(emailId, column.id);
+  };
+
   return (
     <Paper
       elevation={2}
@@ -74,6 +85,8 @@ const EmailColumn = ({
         overflow: 'hidden',
         flexShrink: 0,
       }}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {/* Header de la columna */}
       <Box
@@ -171,6 +184,13 @@ const EmailColumn = ({
               onArchive={onArchive}
               onToggleStar={onToggleStar}
               onReply={onReply}
+              draggable={true}
+              onDragStart={e => {
+                e.dataTransfer.setData('emailId', email.id);
+              }}
+              onDragEnd={e => {
+                e.dataTransfer.clearData();
+              }}
             />
           ))
         )}
