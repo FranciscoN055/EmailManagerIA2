@@ -374,6 +374,13 @@ const Dashboard = () => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token'); // Borra el token JWT
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    window.location.href = '/';  // Redirige al login
+  };
+
   return (
     <Box sx={{ flexGrow: 1, height: '100vh', backgroundColor: 'background.default' }}>
       {/* Header/AppBar */}
@@ -714,7 +721,11 @@ const Dashboard = () => {
           <MenuItemComponent onClick={() => setProfileAnchor(null)}>
             ⚙️ Configuración
           </MenuItemComponent>
-          <MenuItemComponent onClick={() => setProfileAnchor(null)}>
+          <MenuItemComponent onClick={() => {
+              handleLogout();
+              setProfileAnchor(null); 
+            }}
+          >
             🚪 Cerrar sesión
           </MenuItemComponent>
         </MenuList>
