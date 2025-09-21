@@ -25,11 +25,8 @@ class MicrosoftGraphService:
         self.scopes = [
             "Mail.ReadWrite", 
             "Mail.Send",
-            "User.Read",
-            "offline_access"
+            "User.Read"
         ]
-        # Ensure scopes is always a list, not a frozenset
-        self.scopes = list(self.scopes)
     
     def get_status(self):
         """Get service status."""
@@ -75,9 +72,6 @@ class MicrosoftGraphService:
     def exchange_code_for_tokens(self, code):
         """Exchange authorization code for access and refresh tokens."""
         try:
-            logger.info(f"Exchanging code for tokens with scopes: {self.scopes}")
-            logger.info(f"Scopes type: {type(self.scopes)}")
-            
             app = msal.ConfidentialClientApplication(
                 self.client_id,
                 authority=self.authority,
