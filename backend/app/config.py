@@ -45,11 +45,11 @@ class Config:
     ]
     MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://email-manager-ia-testing.vercel.app/auth/callback'
     
-    # OpenAI Configuration
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-    OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
-    OPENAI_MAX_TOKENS = int(os.environ.get('OPENAI_MAX_TOKENS', 1000))
-    OPENAI_TEMPERATURE = float(os.environ.get('OPENAI_TEMPERATURE', 0.3))
+    # Google Gemini Configuration
+    GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-1.5-flash')
+    GEMINI_MAX_TOKENS = int(os.environ.get('GEMINI_MAX_TOKENS', 1000))
+    GEMINI_TEMPERATURE = float(os.environ.get('GEMINI_TEMPERATURE', 0.3))
     
     # Redis Configuration (for Celery)
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'

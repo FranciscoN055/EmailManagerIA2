@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.microsoft_graph import MicrosoftGraphService
-from app.services.openai_service import OpenAIService
+from app.services.openai_service import GeminiService
 from app.services.email_processor import EmailProcessor
 from app.models.user import User
 from app.models.email import Email
@@ -181,11 +181,11 @@ def sync_emails():
         classification_results = {}
         if classify_immediately and new_emails:
             try:
-                openai_service = OpenAIService()
+                gemini_service = GeminiService()
                 logger.info(f"Starting AI classification of {len(new_emails)} new emails")
                 
                 # Classify in batches
-                classifications = openai_service.classify_batch(new_emails, batch_size=3)
+                classifications = gemini_service.classify_batch(new_emails, batch_size=3)
                 
                 # Update emails with classification results
                 for i, email_data in enumerate(new_emails):
@@ -202,14 +202,14 @@ def sync_emails():
                             email.processing_status = 'completed'
                             email.is_classified = True
                             email.classified_at = datetime.now()
-                            email.classification_model = openai_service.model
+                            email.classification_model = gemini_service.model
                             classified_count += 1
                 
                 # Commit classification updates
                 db.session.commit()
                 
                 # Generate classification stats
-                classification_results = openai_service.get_classification_stats(classifications)
+                classification_results = gemini_service.get_classification_stats(classifications)
                 
                 logger.info(f"Successfully classified {classified_count} emails")
                 
@@ -1033,10 +1033,10 @@ def classify_emails():
             })
         
         # Classify with OpenAI
-        openai_service = OpenAIService()
+        gemini_service = GeminiService()
         logger.info(f"Classifying {len(emails)} emails with OpenAI")
         
-        classifications = openai_service.classify_batch(emails_data, batch_size=5)
+        classifications = gemini_service.classify_batch(emails_data, batch_size=5)
         
         # Update emails with classification results
         classified_count = 0
@@ -1051,14 +1051,14 @@ def classify_emails():
                 email.processing_status = 'classified'
                 email.is_classified = True
                 email.classified_at = datetime.now()
-                email.classification_model = openai_service.model
+                email.classification_model = gemini_service.model
                 
                 classified_count += 1
         
         db.session.commit()
         
         # Generate classification stats
-        classification_stats = openai_service.get_classification_stats(classifications)
+        classification_stats = gemini_service.get_classification_stats(classifications)
         
         return jsonify({
             'success': True,
@@ -1080,9 +1080,9 @@ def classify_emails():
 def get_ai_status():
     """Get AI service status and configuration."""
     try:
-        from app.services.openai_service import OpenAIService
+        from app.services.openai_service import GeminiService
         
-        openai_service = OpenAIService()
+        gemini_service = GeminiService()
         status = openai_service.get_status()
         
         return jsonify({
@@ -1130,8 +1130,8 @@ def classify_single_email(email_id):
         }
         
         # Classify with OpenAI
-        openai_service = OpenAIService()
-        classification = openai_service.classify_email(email_data)
+        gemini_service = GeminiService()
+        classification = gemini_service.classify_email(email_data)
         
         # Update email
         email.urgency_category = classification.get('urgency_category', 'medium')
@@ -1141,12 +1141,12 @@ def classify_single_email(email_id):
         email.processing_status = 'classified'
         email.is_classified = True
         email.classified_at = datetime.now()
-        email.classification_model = openai_service.model
+        email.classification_model = gemini_service.model
         
         db.session.commit()
         
         # Get response priority suggestion
-        priority_suggestion = openai_service.suggest_response_priority(classification)
+        priority_suggestion = gemini_service.suggest_response_priority(classification)
         
         return jsonify({
             'success': True,
@@ -1212,8 +1212,8 @@ def get_classification_stats():
             })
         
         # Generate stats
-        openai_service = OpenAIService()
-        stats = openai_service.get_classification_stats(classifications)
+        gemini_service = GeminiService()
+        stats = gemini_service.get_classification_stats(classifications)
         
         # Add timing stats
         recent_emails = Email.query.filter(
@@ -1243,7 +1243,7 @@ def get_classification_stats():
 def get_openai_status():
     """Get OpenAI service status and configuration."""
     try:
-        openai_service = OpenAIService()
+        gemini_service = GeminiService()
         status = openai_service.get_status()
         
         # Add some usage stats if available

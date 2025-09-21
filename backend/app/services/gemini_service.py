@@ -1,10 +1,10 @@
 """
-Gemini Service
-Handles AI-powered email classification using Google Gemini models.
+OpenAI Service
+Handles AI-powered email classification using OpenAI GPT models.
 Specialized for academic context - Universidad San Sebastián ICIF.
 """
 
-import google.generativeai as genai
+from openai import OpenAI
 from flask import current_app
 import logging
 import json
@@ -14,24 +14,22 @@ from typing import List, Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
-class GeminiService:
-    """Service class for Google Gemini API operations with academic email classification."""
+class OpenAIService:
+    """Service class for OpenAI API operations with academic email classification."""
     
     def __init__(self, config=None):
         self.config = config or current_app.config
-        self.api_key = self.config.get('GEMINI_API_KEY')
-        self.model = self.config.get('GEMINI_MODEL', 'gemini-1.5-flash')
-        self.max_tokens = int(self.config.get('GEMINI_MAX_TOKENS', 800))
-        self.temperature = float(self.config.get('GEMINI_TEMPERATURE', 0.3))
+        self.api_key = self.config.get('OPENAI_API_KEY')
+        self.model = self.config.get('OPENAI_MODEL', 'gpt-4o-mini')
+        self.max_tokens = int(self.config.get('OPENAI_MAX_TOKENS', 800))
+        self.temperature = float(self.config.get('OPENAI_TEMPERATURE', 0.3))
         
         self.client = None
-        if self.api_key and self.api_key != 'your-gemini-api-key-here':
+        if self.api_key and self.api_key != 'your-openai-api-key-here':
             try:
-                genai.configure(api_key=self.api_key)
-                self.client = genai.GenerativeModel(self.model)
-                logger.info(f"Gemini client initialized successfully")
+                self.client = OpenAI(api_key=self.api_key)
             except Exception as e:
-                logger.warning(f"Failed to initialize Gemini client: {e}")
+                logger.warning(f"Failed to initialize OpenAI client: {e}")
                 self.client = None
         
         # Academic context patterns - REAL urgent situations
@@ -67,10 +65,10 @@ class GeminiService:
     def get_status(self):
         """Get service status."""
         return {
-            'service': 'GeminiService',
+            'service': 'OpenAIService',
             'status': 'ready' if self.api_key else 'no_api_key',
             'model': self.model,
-            'message': 'Gemini service ready for academic email classification' if self.api_key else 'Gemini API key not configured'
+            'message': 'OpenAI service ready for academic email classification' if self.api_key else 'OpenAI API key not configured'
         }
     
     def _build_classification_prompt(self, email_data: Dict) -> str:
@@ -91,41 +89,20 @@ CONTEXTO ACADÉMICO:
 
 NIVELES DE URGENCIA:
 1. URGENTE (próxima 1 hora): Emergencias médicas, accidentes estudiantiles, crisis de seguridad, situaciones que requieren acción INMEDIATA
-2. ALTA (próximas 3 horas): Problemas académicos graves, reuniones urgentes hoy, deadlines críticos HOY, estudiantes en crisis
-3. MEDIA (hoy o próximos días): Solicitudes académicas con plazo definido, deadlines próximos, cambios de horario, coordinación con profesores
+2. ALTA (próximas 3 horas): Problemas académicos graves, reuniones urgentes hoy, deadlines críticos, estudiantes en crisis
+3. MEDIA (hoy o próximos días): Solicitudes académicas con plazo definido, cambios de horario, coordinación con profesores, tareas administrativas que requieren seguimiento pero NO son emergencias
 4. BAJA (mañana o más): Información general, invitaciones futuras, documentación no urgente, consultas sin plazo específico
-
-REGLAS CRÍTICAS DE DEADLINES (OBLIGATORIAS):
-- CUALQUIER mención de "hoy es el último", "último día", "plazo hoy", "vence hoy" → OBLIGATORIO ALTA prioridad
-- CUALQUIER mención de "último plazo", "deadline hoy", "cierra hoy" → OBLIGATORIO ALTA prioridad
-- CUALQUIER deadline que mencione HOY → MÍNIMO MEDIA prioridad, preferible ALTA
-- Si menciona "último día para" + cualquier trámite académico → MÍNIMO MEDIA prioridad
-- JAMÁS clasificar como BAJA si existe un deadline real del mismo día
-- Los deadlines académicos SIEMPRE tienen prioridad sobre el tipo de remitente
-
-REGLAS CRÍTICAS PARA "MAÑANA" (OBLIGATORIAS):
-- "para mañana", "laboratorio de mañana", "clase de mañana", "examen mañana" → ALTA prioridad (debe resolverse HOY)
-- "reunión mañana", "presentación mañana", "entrega mañana" → ALTA prioridad (debe resolverse HOY)
-- "cambio de sala para mañana", "autorización para mañana" → ALTA prioridad (debe resolverse HOY)
-- DISTINGUIR: "evento PARA mañana" (ALTA) vs "consulta que puedo responder mañana" (BAJA)
-- Si algo es PARA mañana, debe organizarse/autorizarse HOY = ALTA prioridad
 
 PALABRAS CLAVE CRÍTICAS para URGENTE:
 - Emergencias: accidente, lesión, hospital, ambulancia, herido, sangre, desmayo, caída
 - Crisis: ayuda, socorro, crítico, grave, urgente, emergencia
 - Seguridad: peligro, amenaza, violencia, drogas, alcohol
 
-EJEMPLOS DE CLASIFICACIÓN CORRECTA:
+EJEMPLOS DE CLASIFICACIÓN:
 - URGENTE: "Estudiante herido en laboratorio, necesita ambulancia"
-- ALTA: "Hoy es el último día para justificar inasistencia" (deadline HOY)
-- ALTA: "Hoy es el último plazo para cambiarse de sección" (deadline HOY académico)
-- ALTA: "Último día para entregar proyecto, vence hoy" (deadline HOY)
 - ALTA: "Reunión urgente hoy a las 3pm para resolver problema académico"
-- MEDIA: "Último plazo para cambio de sección es el viernes" (deadline próximo)
 - MEDIA: "Solicitud cambio de horario con plazo viernes 20 septiembre"
-- BAJA: "Consulta general sobre horarios del próximo semestre" (sin deadline)
-
-IMPORTANTE: Si el correo dice "hoy es el último plazo/día para [CUALQUIER COSA]" → SIEMPRE ALTA prioridad
+- BAJA: "Consulta general sobre horarios del próximo semestre"
 
 CORREO A CLASIFICAR:
 Remitente: {email_data.get('sender_name', '')} <{email_data.get('sender_email', '')}>
@@ -154,41 +131,35 @@ Responde SOLO en formato JSON válido:
         return base_prompt.strip()
     
     def classify_email(self, email_data: Dict) -> Dict:
-        """Classify a single email using Google Gemini."""
+        """Classify a single email using OpenAI GPT-4."""
         
         logger.info(f"Starting email classification for: {email_data.get('subject', 'No subject')[:50]}...")
-        logger.info(f"Gemini client status: {self.client is not None}")
+        logger.info(f"OpenAI client status: {self.client is not None}")
         logger.info(f"API key configured: {bool(self.api_key)}")
         logger.info(f"Model: {self.model}")
         
         if not self.client:
-            logger.warning("Gemini client not configured - using fallback")
+            logger.warning("OpenAI client not configured - using fallback")
             return self._fallback_classification(email_data)
         
         try:
             prompt = self._build_classification_prompt(email_data)
             logger.info(f"Prompt length: {len(prompt)} characters")
             
-            logger.info("Making Gemini API call...")
-
-            # Configure generation parameters
-            generation_config = {
-                "temperature": self.temperature,
-                "max_output_tokens": self.max_tokens,
-                "response_mime_type": "application/json"
-            }
-
-            # Add system instruction to the prompt
-            full_prompt = f"Eres un experto en clasificación de correos académicos. Responde siempre en JSON válido.\n\n{prompt}"
-
-            response = self.client.generate_content(
-                full_prompt,
-                generation_config=generation_config
+            logger.info("Making OpenAI API call...")
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "Eres un experto en clasificación de correos académicos. Responde siempre en JSON válido."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=self.max_tokens,
+                temperature=self.temperature
             )
-            logger.info("Gemini API call successful")
+            logger.info("OpenAI API call successful")
             
-            content = response.text.strip()
-            logger.info(f"Gemini response received: {content[:200]}...")
+            content = response.choices[0].message.content.strip()
+            logger.info(f"OpenAI response received: {content[:200]}...")
             
             # Clean response - remove markdown formatting if present
             if content.startswith('```json'):
@@ -222,18 +193,18 @@ Responde SOLO en formato JSON válido:
                 return classification
                 
             except (json.JSONDecodeError, ValueError, KeyError) as e:
-                logger.error(f"❌ Error parsing Gemini response: {e}")
+                logger.error(f"❌ Error parsing OpenAI response: {e}")
                 logger.error(f"Raw response: {content}")
                 logger.warning("Falling back to rule-based classification")
                 return self._fallback_classification(email_data)
         
         except Exception as e:
-            logger.error(f"❌ Gemini API error: {str(e)}")
+            logger.error(f"❌ OpenAI API error: {str(e)}")
             logger.warning("Falling back to rule-based classification")
             return self._fallback_classification(email_data)
     
     def _fallback_classification(self, email_data: Dict) -> Dict:
-        """Fallback classification when Gemini is unavailable."""
+        """Fallback classification when OpenAI is unavailable."""
         
         subject = email_data.get('subject', '').lower()
         body = email_data.get('body_preview', '').lower()
@@ -243,7 +214,7 @@ Responde SOLO en formato JSON válido:
         # Rule-based classification - start with different defaults to avoid medium bias
         urgency = 'low'  # Start with low as default
         confidence = 0.6
-        reasoning = "Clasificación basada en reglas (Gemini no disponible)"
+        reasoning = "Clasificación basada en reglas (OpenAI no disponible)"
         
         # Check for non-urgent indicators first (to avoid false positives)
         has_non_urgent_indicators = any(keyword in text_content for keyword in self.non_urgent_indicators)
