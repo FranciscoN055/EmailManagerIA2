@@ -81,7 +81,7 @@ class MicrosoftGraphService:
             
             result = app.acquire_token_by_authorization_code(
                 code,
-                scopes=self.scopes,
+                scopes=list(self.scopes),
                 redirect_uri=self.redirect_uri
             )
             
@@ -101,7 +101,7 @@ class MicrosoftGraphService:
             
             result = app.acquire_token_by_refresh_token(
                 refresh_token,
-                scopes=self.scopes
+                scopes=list(self.scopes)
             )
             
             return result
