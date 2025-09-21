@@ -28,6 +28,8 @@ class MicrosoftGraphService:
             "User.Read",
             "offline_access"
         ]
+        # Ensure scopes is always a list, not a frozenset
+        self.scopes = list(self.scopes)
     
     def get_status(self):
         """Get service status."""
@@ -73,6 +75,9 @@ class MicrosoftGraphService:
     def exchange_code_for_tokens(self, code):
         """Exchange authorization code for access and refresh tokens."""
         try:
+            logger.info(f"Exchanging code for tokens with scopes: {self.scopes}")
+            logger.info(f"Scopes type: {type(self.scopes)}")
+            
             app = msal.ConfidentialClientApplication(
                 self.client_id,
                 authority=self.authority,
@@ -81,7 +86,7 @@ class MicrosoftGraphService:
             
             result = app.acquire_token_by_authorization_code(
                 code,
-                scopes=list(self.scopes),
+                scopes=self.scopes,
                 redirect_uri=self.redirect_uri
             )
             
@@ -101,7 +106,7 @@ class MicrosoftGraphService:
             
             result = app.acquire_token_by_refresh_token(
                 refresh_token,
-                scopes=list(self.scopes)
+                scopes=self.scopes
             )
             
             return result
