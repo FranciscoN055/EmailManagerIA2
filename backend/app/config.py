@@ -43,7 +43,7 @@ class Config:
         'https://graph.microsoft.com/Mail.Send',
         'offline_access'
     ]
-    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://email-manager-ia-testing.vercel.app/auth/callback'
+    MICROSOFT_REDIRECT_URI = os.environ.get('MICROSOFT_REDIRECT_URI') or 'https://email-manager-ia-2.vercel.app/auth/callback'
     
     # Google Gemini Configuration
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
