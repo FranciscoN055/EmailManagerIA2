@@ -6,13 +6,19 @@ const Login = () => {
   const handleMicrosoftLogin = async () => {
     try {
       console.log('Obteniendo URL de autenticación de Microsoft...');
+      console.log('API URL:', import.meta.env.VITE_API_URL);
+      console.log('Full API URL:', `${import.meta.env.VITE_API_URL}/microsoft/auth/login`);
+      
       const response = await microsoftAPI.getAuthUrl();
+      console.log('Response received:', response);
       const authUrl = response.data.auth_url;
       
       // Redirigir a Microsoft para autenticación
       window.location.href = authUrl;
     } catch (error) {
       console.error('Error al obtener URL de autenticación:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       alert('Error al conectar con Microsoft. Por favor, verifica que el servidor esté funcionando.');
     }
   };
